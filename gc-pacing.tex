@@ -1,0 +1,859 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{hyperref}
+
+\begin{document}
+
+\title{GC control loop for OCaml 5 (rough draft)}
+\author{Stephen Dolan and Damien Doligez}
+\date{\today}
+
+
+\maketitle
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Prerequisites and assumptions}
+\label{prerequisites}
+
+\begin{itemize}
+\item Stephen Dolan's mark-delay patch (rebased and adapted by Nick
+Barnes, \href{https://github.com/ocaml/ocaml/pull/13580}{\#13580}),
+which delays the marking of roots until sweeping is mostly done. We'll
+make the simplifying assumption that sweeping is completed before the
+roots are marked.
+\item Stephen Dolan's accounting patch,
+\href{https://github.com/oxcaml/oxcaml/pull/3618}{oxcaml\#3618}, which
+ensures that the work done to mark the roots and the marking work done by the
+write barrier are counted as normal marking work.
+\item Sadiq Jaffer's patch,
+\href{https://github.com/ocaml/ocaml/pull/13616}{\#13616}, which ensures that
+the sweeping work is independent of the size and shape of the free
+list (formally, it is bounded by a linear function of
+live$+$garbage). Note that this may also be covered by
+\href{https://github.com/oxcaml/oxcaml/pull/3618}{oxcaml\#3618}. To
+be checked in \verb'shared_heap.c/pool_sweep'.
+\item Another patch to change the ephemeron GC work accounting. The
+marking of ephemerons should be counted as normal marking (each block
+counting for its size when it gets marked). This is to get rid of
+arbitrary (up to quadratic) amounts of work when the structure of
+ephemeron graphs is complex. The upside is that this will make the GC
+behaviour predictable (in terms of space), the downside is that the GC
+pauses will have less-predictable length, hurting the worst-case
+latency of pauses. In practice this should not be a problem because
+the users of ephemerons (therorem-provers) are not dependent on
+real-time behaviour.
+\item Yet another patch to insert an Idle phase between Sweep and
+Mark. In this phase, the GC does not do any work while the mutator is
+allocating as usual.
+\end{itemize}
+
+We assume the following properties of the OCaml runtime:
+\begin{itemize}
+\item OCaml 5 ensures that the sweeping work is constant during one GC cycle
+(i.e. allocations done during sweeping do not increase work-to-do).
+\item The heap is large enough and the mutator allocations are smooth
+enough that we can ignore all quantization issues and treat all
+numbers as reals.
+\end{itemize}
+
+About words: we count allocations and work in units of (heap) words,
+including header and contents of each block. For marking and sweeping
+work, treating one block is counted as a number of work units equal to
+its size (with header). This is a simple-minded model of the actual
+cost of doing the work. It allows us to bound the time spent in a
+slice (hence the maximum latency of the GC) although it doesn't give a
+very good uniformity (the latency distribution is rather wide).
+
+When we talk about \emph{amount of data} we indicate a number of
+words (allocated or collected, live or dead, etc.) including the
+header words.
+
+Steady-state assumption (SSA): whenever $x$
+words are allocated by the mutator, $x$ (other) words are made
+unreachable. This is a simplifying assumption that lets us study the
+optimal solution to our problem: make the program use an amount of
+memory proportional to the size of the live data. We expect most
+programs to have at least some phases that violate this
+assumption. The GC behaviour during these phases will be studied in
+another document.
+
+A GC cycle is composed of the following points and phases:
+\begin{itemize}
+\item (point) \emph{beginning of cycle $n$}, rotation of the colours
+\item Sweep phase
+\item Idle phase
+\item (point) marking of roots
+\item Mark phase
+\item (point) \emph{end of cycle $n$, beginning of cycle $n+1$}
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Simple heap}
+In this section we study the case of a program that does not make use
+of custom blocks or ephemerons.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Notations}
+
+We define the following variables:
+
+\bigskip
+$o$ is the \verb'overhead' parameter of the runtime system, given by
+the user.
+
+$L_n$ is the amount of live (marked and reachable) data at the
+beginning of cycle $n$
+
+$F_n$ is the amount of floating garbage (marked and unreachable) at
+the beginning of cycle $n$
+
+$G_n$ is the amount of collectible garbage (unmarked and unreachable)
+at the beginning of cycle $n$
+
+$S_n$ is the amount of data allocated during the Sweep phase of cycle
+$n$
+
+$I_n$ is the amount of data allocated during the Idle phase of cycle
+$n$
+
+$M_n$ is the amount of data allocated during the Mark phase of cycle
+$n$
+
+$s$ is the amount of GC work done per word allocated in the Sweep phase
+
+$m$ is the amount of GC work done per word allocated in the Mark phase
+\bigskip
+Note that $s$ and $m$ are the control parameters of the GC: in each
+major GC slice, we know how much the program allocated since the
+latest slice, and we have to decide how much GC work to do in
+reaction.
+\bigskip
+\begin{equation}\label{def-beta}
+\beta = o/100
+\end{equation}
+This is the overhead setting expressed in a convenient unit.
+
+\begin{equation}\label{def-sigma}
+\sigma = s/m
+\end{equation}
+This is the ratio of sweeping to marking ``speed''. This
+will be chosen to make the GC pauses of the Sweep and Mark phases
+approximately equal in real-time. This is normally larger than 1
+because it turns out that the GC code needs to do more work to mark
+$x$ words of memory than to sweep the same amount. Note that this
+ratio is a function of the GC code rather than the memory behaviour of
+the program. We will choose a reasonable constant after studying the
+run-time behaviour of the code.
+
+\begin{equation}\label{def-O}
+O_n = F_n + G_n
+\end{equation}
+We call this \emph{raw overhead}. This is our measure of the memory
+overhead of the system. It is
+composed of all the garbage that is present at the  beginning of the
+GC cycle. In an ideal world, the free list is empty at the beginning
+of the cycle because we are starting to Sweep and replenish the free
+list. In reality, the free list may be non-empty, and there will be
+other overhead caused by auxiliary data structures and
+fragmentation. Since these cannot be controlled by changing the GC
+speed, we keep them out of our equations.
+
+\begin{equation}\label{def-A}
+A_n = L_n + O_n
+\end{equation}
+We call this the \emph{active heap size}. This is the "ideal" size of
+the heap, ignoring fragmentation and free-list overheads.
+
+\begin{equation}\label{def-Q}
+Q_n = O_n/L_n
+\end{equation}
+This is the relative overhead: how much more memory we need per word
+of live data.
+
+The goal of the GC pacing system is to choose $s$ and $m$ such that
+$Q_n$ stays as close as possible to $\beta$, so we will look for a
+solution with the constraint:
+\begin{equation}\label{beta-Q}
+Q = \beta
+\end{equation}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Steady state}
+
+From the SSA, we immediately deduce that $S_n$, $I_n$, $M_n$ are also
+the amounts of garbage created during the Sweep, Idle, Mark phases
+respectively. We also get:
+\begin{equation}
+  L_{n+1} = L_n
+\end{equation}
+and in fact the amount of live data is constant through the GC
+cycle. We will drop the subscript and call this amount $L$.
+
+Because the GC is a snapshot-at-beginning incremental GC, the floating
+garbage at the beginning of cycle $n+1$ is what was allocated between
+the marking of roots and the end of cycle $n$:
+\begin{equation}\label{eqn-F}
+  F_{n+1} = M_n
+\end{equation}
+
+The collectible garbage is composed of the floating garbage from the
+previous cycle, plus what became unreachable before the marking of
+roots:
+\begin{equation}\label{eqn-G}
+  G_{n+1} = F_n + S_n + I_n
+\end{equation}
+
+The amount of work done during Sweep must be equal to the amount of
+live data plus the amount of garbage, because the free list is not
+swept.
+\begin{equation}\label{eqn-sS}
+sS_n = L + F_n + G_n
+\end{equation}
+
+The amount of work done during Mark must be equal to the amount of
+live data at root marking time, which is $L$. This is because data
+allocated during marking is allocated marked and does not need to be
+marked again.
+\begin{equation}\label{eqn-mM}
+mM_n = L
+\end{equation}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection[Choice of I]{Choice of $I$}
+
+$I_n$ is how long we keep the GC in Idle, measured in memory allocated
+by the mutator during this time. We can choose whatever value we want
+for $I_n$, it is not constrained by the equations above. We are
+interested in running the GC in two modes:
+\begin{itemize}
+\item normal mode: when $L$ is reasonably large, we don't use the Idle
+phase, so we set $I_n = 0$.
+\item small-heap mode: when $L$ is very small,  we can avoid running
+the major GC at full speed, at the cost of a small amount of memory
+(raw overhead), even though that translates to an unbounded relative
+overhead. To this end, we choose a constant J (for example, at the
+same order of magnitude as the minor heap size) and decide we must
+allocate J words before we start marking:
+\begin{equation}\label{def-J}
+  J = S_n + I_n
+\end{equation}
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection[Solving for s and m]{Solving for $s$ and $m$}
+
+We can use the SSA to simplify notations: Assuming $o$ (and $\beta$),
+$s$, $m$ are constant, we also have $L_n$, $M_n$, $F_n$ constant. We
+write them as $L$, $M$, $F$ without subscript.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Normal mode}
+
+In normal mode, we have $I_n = 0$, thus
+\begin{equation}
+\begin{split}
+G_{n+1} & = F + S_n \\
+        & = F + L/s + F/s + G_n/s
+\end{split}
+\end{equation}
+
+This converges on a constant $G$ iff $s > 1$. When $s \leq 1$, the
+sequence G will keep growing and memory use is unbounded.
+
+We now assume $s > 1$. We also assume that $G_n$ has converged to its
+limit, which we call $G$.
+
+$S_n$, $O_n$, $A_n$, $Q_n$ are now constants too, we'll write $S$,
+$O$, $A$, $Q$.
+
+We get the following equations:
+
+\begin{gather*}
+Q = \beta      \\
+\sigma = s/m   \\
+I = 0          \\
+Q = O / L      \\
+O = F + G      \\
+G = F + S + I  \\
+F = M          \\
+sS = L + F + G \\
+mM = L
+\end{gather*}
+
+These equations are mostly linear and we can eliminate all the
+uppercase variables to get:
+\begin{gather*}
+s = 1 + (2\sigma + 1)/\beta \\
+m = s/\sigma
+\end{gather*}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Small-heap mode}
+From \eqref{eqn-G} and \eqref{def-J} we get:
+\begin{equation}
+G_{n+1} = F + J
+\end{equation}
+
+$G$ is again constant, and so are $S$, $I$, $O$, $Q$. We get the
+following equations:
+\begin{gather*}
+J = S + I      \\
+O = F + G      \\
+A = L + O      \\
+sS = L + F + G \\
+mM = L \\
+Q = O/L \\
+F = M \\
+G = M + J \\
+\end{gather*}
+
+We get
+\begin{gather*}
+A = sJ - sI \\
+A \leq sJ
+\end{gather*}
+
+This gives us a nice bound on the active heap size, which is also a
+bound on the absolute overhead.
+
+The relative overhead will be:
+\begin{equation}\label{small-heap-Q}
+  Q = 2/m + J/L
+\end{equation}
+As expected, this can get arbitrarily large as L approaches 0.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Smooth transition between modes}
+
+At the transition between modes, we have $I = 0$ and $J =
+S$. Computing $Q$ from the small-heap formula \eqref{small-heap-Q}, we
+get:
+\begin{equation}
+  Q = (2\sigma+1)/(s-1)
+\end{equation}
+which is also the Q value from the normal mode, so there is no
+discontinuity between the modes.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Managing off-heap memory}
+
+Off-heap memory is memory allocated outside the heap, but linked from
+the heap. Since it gets deallocated (typically through finalisers)
+when the corresponding heap blocks are freed, it is in fact managed by
+the GC. We want the GC pacing logic to take it into account. Off-heap
+memory is normally managed through custom blocks, most importantly
+bigarrays (but also I/O buffers, etc.).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Notations}
+
+We define a few more variables:
+
+\bigskip
+$L'_n$ is the amount of off-heap live data (linked from live
+heap blocks) at the beginning of cycle $n$
+
+$F'_n$ is the amount of off-heap floating garbage (linked from
+floating garbage heap blocks and not live) at the beginning of
+cycle $n$
+
+$G'_n$ is the amount of off-heap collectible garbage (linked only from
+collectible garbage heap blocks) at the beginning of cycle $n$
+
+$S'_n$ is the amount of off-heap data allocated during the Sweep phase
+of cycle $n$
+
+$I'_n$ is the amount of off-heap data allocated during the Idle phase
+of cycle $n$
+
+$M'_n$ is the amount of off-heap data allocated during the Mark phase
+of cycle $n$
+
+We introduce two more control parameters for the GC:
+
+$s'$ is the is the amount of GC work done per off-heap word allocated
+in the Sweep phase
+
+$m'$ is the is the amount of GC work done per off-heap word allocated
+in the Mark phase
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Strenthening the SSA}
+
+We complete the SSA with a new assumption:
+
+Extended steady-state assumption (SSAx): Whenever $x'$ words are
+allocated off-heap, $x'$ (other) off-heap words become unreachable.
+
+We also introduce the Allocation Rate Assumption (ARA): that the ratio
+of off-heap to on-heap allocations is a constant $e'$. We get:
+\begin{equation}\label{eqn-S'}
+S'_n = e' S_n
+\end{equation}
+\begin{equation}\label{eqn-I'}
+I'_n = e' I_n
+\end{equation}
+\begin{equation}\label{eqn-M'}
+M'_n = e' M_n
+\end{equation}
+
+From SSAx, we get:
+\begin{equation}
+L'_{n+1} = L'_n
+\end{equation}
+Thus the amount of off-heap live data is constant and we'll call it
+$L'$.
+
+We also have:
+\begin{gather}
+F'_{n+1} = M'_n    \label{eqn-F'} \\
+G'_{n+1} = F'_n + S'_n + I'_n   \label{eqn-G'}
+\end{gather}
+
+The GC never touches or even looks at off-heap data, so the amount of
+work to do isn't affected by off-heap data. Equations \eqref{eqn-sS} and
+\eqref{eqn-mM} become invalid and are replaced with:
+\begin{gather}
+ sS_n + s'S'_n = L_n + F_n + G_n   \label{eqn-sS'} \\
+ mM_n + m'M'_n = L_n   \label{eqn-mM'}
+\end{gather}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{New definition of overhead}
+
+We define the off-heap overhead to be all the off-heap garbage:
+\begin{equation}\label{def-O'}
+O'_n = F'_n + G'_n
+\end{equation}
+
+Likewise, we define the \emph{active off-heap size} $A'_n$ to be the
+size of active off-heap memory:
+\begin{equation}\label{def-A'}
+A'_n = L'_n + O'_n
+\end{equation}
+
+We want to manage the on-heap and off-heap overhead as a whole, so we
+define the total space overhead to be the sum of the two:
+\begin{equation}\label{def-Obar}
+ \overline{O}_n = O_n + O'_n
+\end{equation}
+
+Unlike $L$ (which is measured indirectly by the Mark and Sweep
+phases), we notice that the magnitude of $L'$ has no influence on the
+GC: the off-heap space is invisible to it. As a consequence, we will
+use a definition of relative overhead that disregards $L'$: we make it
+relative only to $L$.
+For programs with a large $L'/L$ factor, this might be a problem because
+the GC will aim for a very small overhead relative to the total live
+size $L+L'$. Our best solution for the moment is to count on the user
+to compensate by increasing the $o$ parameter.
+\begin{equation}\label{def-Qbar}
+\overline{Q}_n = \overline{O}_n / L_n
+\end{equation}
+
+
+The goal of the pacing logic is now to choose not only $s$ and $m$,
+but also $s'$ and $m'$ to keep $\overline{Q}_n$ close to $\beta$.
+
+We will choose $s'$ and $m'$ such that:
+\begin{equation}\label{sigma-prime}
+s' / m' = \sigma
+\end{equation}
+As noted above (\eqref{def-sigma}), the ratio between $s'$ and $m'$
+should be chosen as a function of the real-time behaviour of the
+marking and sweeping code. It doesn't change when the GC work is in
+response to off-heap allocation.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection[Choice of I and I']{Choice of $I$ and $I'$}
+
+$I_n$ and $I'_n$ are related by the ARA and \eqref{eqn-I'}, so there's
+only one
+thing to choose. The interesting value is the total active size
+$A + A'$ of the program rather than the way it is distributed between
+on-heap and off-heap data. As before, we'll distinguish two modes:
+\begin{itemize}
+\item Normal mode: when $L+L'$ is reasonably large, we want to use
+$I_n = I'_n = 0$
+\item Small-memory mode: when $L+L'$ is small, we want to slow down
+the GC by extending the Idle phase, and let the relative overhead get
+larger than the user setting. As before, we choose one constant, now
+called $\overline{J}$ and let:
+\begin{equation}\label{eqn-Jbar}
+\overline{J} = S_n + S'_n + I_n + I'_n
+\end{equation}
+In other words, we switch from Idle to Mark phase when
+$\overline{J}$ words have been allocated (on- and off-heap) since the
+beginning of the cycle.
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection[Solving for s, m, s', m']{Solving for $s$, $m$, $s'$, $m'$}
+
+Using SSAx, we have $L'$ constant; assuming $s'$ and $m'$ are constant
+and using
+\eqref{eqn-M'}, \eqref{eqn-F'}, \eqref{eqn-mM'}, we infer that
+$M'$ and $F'$ are also constant.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Normal mode}
+
+We have the following equations:
+\begin{gather*}
+S'_n = e'S_n \\
+sS_n + s'S'_n = L + F + G_n \\
+G_{n+1} = F + S_n
+\end{gather*}
+
+From which we get:
+\begin{equation}
+G_{n+1} = F + \frac{L + F + G_n}{s + e's'}
+\end{equation}
+
+This converges on a constant $G$ iff $s + e's' > 1$,
+otherwise garbage grows unboundedly.
+
+We now assume $s > 1$, which ensures $s + e's' > 1$ for all values of
+$e'$, and we also assume that $G_n$ has converged to $G$.
+
+$S_n$ is now constant, and so is $S'_n$. We'll write $S$ and $S'$.
+
+From \eqref{eqn-S'}, \eqref{eqn-I'}, \eqref{eqn-M'}, \eqref{eqn-G'} we get:
+\begin{equation}
+G'_{n+1} = e' G_{n+1}
+\end{equation}
+Thus $G'_n$, $O'_n$, $A'_n$, $\overline{O}_n$, $\overline{Q}_n$ are
+also constant, we'll write $G'$, $O'$, $A'$, $\overline{O}$,
+$\overline{Q}$.
+
+We have the following equations:
+\begin{gather*}
+ s/m = \sigma \\
+ s' / m' = \sigma \\
+ I = 0 \\
+ I' = 0 \\
+ M' = e' M \\
+ S' = e' S \\
+ F = M \\
+ F' = M' \\
+ G = F + S + I \\
+ G' = F' + S' + I' \\
+ sS + s'S' = L + F + G \\
+ mM + m'M' = L \\
+ O = F + G \\
+ O' = F' + G' \\
+ \overline{O} = O + O' \\
+ \overline{Q} = \overline{O} / L \\
+ \overline{Q} = \beta
+\end{gather*}
+
+Solving for $s$ and $s'$ as a function of $\beta$, we get:
+\begin{equation}
+s + e' s' = 1 + (1+e') (2\sigma+1)/\beta
+\end{equation}
+
+If $e' = 0$ we get the same equation as in the simple heap. If $e' >
+0$, we get to choose $s$ and $s'$ as a function of $e'$ and
+$\overline{Q}$. It is convenient to choose $s$ independently of $e'$,
+which means using the same solution as in the simple case:
+\begin{equation} \label{solution-s'}
+s = 1 + (2\sigma+1)/\beta
+\end{equation}
+
+This leaves us with
+\begin{align}
+s' & = (2\sigma+1)/\beta \\
+s' & = s - 1
+\end{align}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Small-heap mode}
+
+In small-heap mode, we will keep the same $s$ and $s'$ as for normal
+mode, and concentrate on the choice of $\overline{J}$.
+
+We have the following equations:
+\begin{gather*}
+G = F + S + I  \\
+G' = F' + S' + I'  \\
+F' = M'  \\
+F = M \\
+S' = eS \\
+I' = e'I \\
+M' = e'M \\
+mM + m'M' = L \\
+sS + s'S' = L + F + G \\
+\overline{J} = S + S' + I + I'  \\
+O = F + G  \\
+O' = F' + G' \\
+\overline{O} = O + O'  \\
+s' = s - 1
+\end{gather*}
+
+We get:
+\begin{equation}
+\overline{O} = 2\sigma\frac{1+e}{s+e's'}L + \overline{J}
+\end{equation}
+
+We must have $I \geq 0$, hence:
+\begin{gather*}
+\overline{J} \geq (1+e')S \\
+\overline{J} \geq (L+F+G)\frac{e+1}{s + e's'} \\
+s + e's' >= (1+e')(L+F+G)/\overline{J}
+\end{gather*}
+
+We can compute the total size of active memory:
+\begin{equation}
+\overline{A} = A + A' = L + L' + \overline{J} + 2\sigma\frac{1+e'}{s + e's'}
+\end{equation}
+
+We have:
+\begin{equation}
+\overline{J} = (1+e')(S+I)
+\end{equation}
+hence
+\begin{gather*}
+e' = \overline{J} / (S+I) \\
+e' \leq \overline{J}/S - 1
+\end{gather*}
+
+Now consider the function $f(e') = (1+e')/(s + e'(s-1))$,
+evaluated between $e'=0$ and $e'=\overline{J}/S-1$. Its derivative is
+positive, so it is increasing on the interval, going from $1/s$ to
+$1/(s-1 + S/\overline{J})$. This last bound is less than or equal to
+$1/(s-1)$, thus $f(e')$ stays between $1/s$ and $1/(s-1)$ and we get:
+\begin{equation}
+\overline{O} \leq \overline{J} + 2\sigma L / (s-1)
+\end{equation}
+
+We also have:
+\begin{equation}
+L + F + G = sS + s'S'
+\end{equation}
+hence:
+\begin{gather*}
+L \leq sS + s'S' \\
+L \leq s\overline{J}
+\end{gather*}
+and
+\begin{equation}
+\overline{O} \leq (2\sigma+1)\frac{s}{s-1}\overline{J}
+\end{equation}
+
+Thus, in small-heap mode the value of $e'$ is bounded, and so is the
+absolute overhead.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Transition between the modes}
+
+At the transition point, we have $I = I' = 0$, so
+$\overline{J} = (1+e')S$. We get:
+\begin{equation}
+\overline{Q} = (2\sigma+1) / (s-1)
+\end{equation}
+
+which is the same as the normal-mode solution \eqref{solution-s'}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Ephemerons}
+
+To deal with ephemerons, the GC has to maintain a global list of all
+ephemerons, and uses two more phases, inserted between
+the Mark phase and the end of the cycle:
+\begin{itemize}
+\item Ephe\_mark, where the GC repeatedly goes through the list of
+ephemerons in order to mark their data alive according to some
+conditions (wich are irrelevant here). In the worst case, this phase
+will use time quadratic in the length of the list. Since this time
+cannot be predicted, we choose to ignore it: treat this phase as a
+part of the Mark phase, and count work units normally when blocks are
+marked. Note that this degrades the real-time performance of the GC
+for programs that make significant use of ephemerons.
+\item Ephe\_sweep, where the GC goes once through the list of
+ephemerons to remove the garbage from the list and erase the weak
+pointers as needed. We treat this phase as part of the Mark phase, and
+change our formulas to take this extra work into account.
+\end{itemize}
+
+Note that ephemerons are in a way dual to off-heap memory: they do not
+use memory, and they do add workload to the GC.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Notations}
+
+We add more notations:
+
+\bigskip
+$L''_n$ is the amount of live ephemerons at the beginning of cycle $n$.
+
+$F''_n$ is the amount of floating garbage ephemerons at the beginning
+of cycle $n$.
+
+$G''_n$ is the amount of collectible garbage ephemerons at the
+beginning of cycle $n$.
+
+$S''_n$ is the amount of ephemerons allocated during the Sweep phase
+of cycle $n$.
+
+$I''_n$ is the amount of ephemerons allocated during the Idle phase
+of cycle $n$.
+
+$M''_n$ is the amount of ephemerons allocated during the Mark phase
+of cycle $n$.
+
+$s''$ is the amount of GC work done per word of ephemerons allocated
+during the Mark phase.
+
+$m''$ is the amount of GC work done per word of ephemerons allocated
+during the Mark phase.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Strenghtening the SSA (again)}
+
+We introduce a new SSA for ephemerons:
+
+Steady-state assumption for ephemerons (SSAe): Whenever $x''$
+words of ephemerons are allocated, $x''$ (other) ephemeron words
+become unreachable.
+
+We also introduce the Allocation Rate Assumption for ephemerons
+(ARAe): the ratio of ephemerons to on-heap allocations is a constant
+$e''$. We get:
+\begin{gather}
+S''_n = e''S_n \label{eqn-S''} \\
+I''_n = e''I_n \label{eqn-I''} \\
+M''_n = e''M_n \label{eqn-M''}
+\end{gather}
+
+From SSAe, we get:
+\begin{equation}
+L''_{n+1} = L''_n
+\end{equation}
+
+Thus the amount of ephemerons is constant and we'll call it $L''$.
+
+We also have:
+\begin{gather}
+F''_{n+1} = M''_n  \label{eqn-F''} \\
+G''_{n+1} = F''_n + S''_n + I''_n   \label{eqn-G''}
+\end{gather}
+
+The GC now has more work to do, but only in the Mark phase. Note that
+at the beginning of Mark\_ephe, the ephemeron list contains not only
+all the marked ephemerons: live ($L''$) and floating garbage of the next
+cycle $F''_{n+1}$ but also all the garbage ephemerons of the next
+cycle $G''_{n+1}$ that will be removed from the list and reclaimed
+during the Sweep phase of the next cycle. However, for the garbage
+ephemerons, the GC does no work beyond removing them from the list,
+unlike the other ones, for which it has to examine each field. Since
+adding the term $G''_{n+1}$ makes the stability condition really hard
+to study, we will simplify things by not counting them as work.
+
+Equations
+\eqref{eqn-sS'} and \eqref{eqn-mM'} become invalid and are replaced with:
+\begin{gather}
+sS_n + s'S'_n + s''S''_n = L + F_n + G_n \label{eqn-sS''}  \\
+mM_n + m'M'_n + m''M''_n = L + L'' + F''_{n+1}  \label{eqn-mM''}
+\end{gather}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Overhead}
+
+The ephemerons cause more GC work, but they do not occupy any memory
+beyond what is already accounted for, so our definitions of overhead
+does not need to be changed.
+
+We have two more parameters to choose, $s''$ and $m''$, and the goal
+is still to keep $\overline{Q}_n$ close to $\beta$.
+
+Once again and for the same reason as above, we will choose $s''$ and
+$m''$ such that:
+\begin{equation}
+s''/m'' = \sigma
+\end{equation}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection[Choice of I, I', I'']{Choice of $I$, $I'$, $I''$}
+
+Once again, $I$, $I'$, $I''$ are related by ARA and ARAe and
+\eqref{eqn-I'} and \eqref{eqn-I''}, so we have only one variable to
+set. We could keep $\overline{J}$ as is, but we choose to count
+ephemerons in the number of things allocated
+during Sweep+Idle and use:
+\begin{equation}
+\overline{\overline{J}} = S_n + S'_n + S''_n + I_n + I'_n + I''_n
+\end{equation}
+% and hope the equations turn out simple...
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection[Solving for s, s', s'', m, m', m'']
+{Solving for $s$, $s'$, $s''$, $m$, $m'$, $m''$}
+
+Using SSAe, we have $L''$ constant; assuming $s''$ and $m''$ constant
+and using \eqref{eqn-M'}, \eqref{eqn-M''}, \eqref{eqn-F''},
+\eqref{eqn-mM''} we conclude that $M$, $M'$, $M''$, $F$, $F'$, $F''$
+are also constant.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Normal mode}
+
+We have:
+\begin{gather*}
+S'_n = e'S_n \\
+S''_n = e''S_n \\
+sS_n + s'S'_n + s''S''_n = L + F + G_n \\
+G_{n+1} = F + S_n
+\end{gather*}
+We get:
+\begin{equation}
+G_{n+1} = F + L/(s+s'e'+s''e'') + F/(s+s'e'+s''e'') + G_n/(s+s'e'+s''e'')
+\end{equation}
+
+This converges on a constant G iff $s+s'e'+s''e'' > 1$. We once again
+assume $s > 1$, which ensures the condition is true for all values of
+$e'$ and $e''$. We also assume that $G_n$ has converged to its limit,
+which we again call $G$.
+
+Then $S$, $S'$, $S''$, $G'$, $G''$, $O$, $O'$, $A$, $A'$,
+$\overline{O}$, $\overline{Q}$ are also constant.
+
+We have the following:
+\begin{align*}
+s/m &= \sigma  &  s'/m' &= \sigma  &  s''/m'' &= \sigma  \\
+I &= 0  &  I' &= 0  &  I'' &= 0  \\
+ & & M' &= e'M  &  M'' &= e''M \\
+ & & S' &= e'S  &  S'' &= e''S \\
+F &= M & F' &= M' &  F'' &= M'' \\
+G &= F + S + I  &  G' &= F' + S' + I'  &  G'' &= F'' + S'' + I'' \\
+O &= F + G  &  O' &= F' + G' & \overline{O} &= O + O' \\
+\overline{Q} &= \overline{O}/L  & sS + s'S' + s''S'' &= L + F + G \\
+\overline{Q} &= \beta  & mM + m'M' + m''M'' &= L + L'' + F''
+\end{align*}
+
+Let us define
+\begin{equation}
+\overline{s} = s + e's' + e''s''
+\end{equation}
+We get:
+\begin{equation}
+(\overline{s} - 1)(\overline{s} - e''\sigma)\beta
+= (1 + e')\overline{s}(2\sigma + 1) + 2\sigma \frac{L''}{L}
+  - e''\sigma
+\end{equation}
+
+...
+
+
+\end{document}
+
