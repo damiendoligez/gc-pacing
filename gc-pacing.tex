@@ -125,12 +125,16 @@ $n$
 $s$ is the amount of GC work done per word allocated in the Sweep phase
 
 $m$ is the amount of GC work done per word allocated in the Mark phase
+
 \bigskip
+
 Note that $s$ and $m$ are the control parameters of the GC: in each
 major GC slice, we know how much the program allocated since the
 latest slice, and we have to decide how much GC work to do in
 reaction.
+
 \bigskip
+
 \begin{equation}\label{def-beta}
 \beta = o/100
 \end{equation}
@@ -161,11 +165,11 @@ other overhead caused by auxiliary data structures and
 fragmentation. Since these cannot be controlled by changing the GC
 speed, we keep them out of our equations.
 
-\begin{equation}\label{def-A}
-A_n = L_n + O_n
-\end{equation}
-We call this the \emph{active heap size}. This is the "ideal" size of
-the heap, ignoring fragmentation and free-list overheads.
+%% \begin{equation}\label{def-A}
+%% A_n = L_n + O_n
+%% \end{equation}
+%% We call this the \emph{active heap size}. This is the "ideal" size of
+%% the heap, ignoring fragmentation and free-list overheads.
 
 \begin{equation}\label{def-Q}
 Q_n = O_n/L_n
@@ -431,16 +435,18 @@ We define the off-heap overhead to be all the off-heap garbage:
 O'_n = F'_n + G'_n
 \end{equation}
 
-Likewise, we define the \emph{active off-heap size} $A'_n$ to be the
-size of active off-heap memory:
-\begin{equation}\label{def-A'}
-A'_n = L'_n + O'_n
-\end{equation}
+%% Likewise, we define the \emph{active off-heap size} $A'_n$ to be the
+%% size of active off-heap memory, and $\dot{A}_n$ the total active
+%% size:
+%% \begin{equation}\label{def-A'}
+%% A'_n = L'_n + O'_n
+%% \dot{A}_n = A_n + A'_n
+%% \end{equation}
 
 We want to manage the on-heap and off-heap overhead as a whole, so we
 define the total space overhead to be the sum of the two:
 \begin{equation}\label{def-Obar}
- \overline{O}_n = O_n + O'_n
+ \dot{O}_n = O_n + O'_n
 \end{equation}
 
 Unlike $L$ (which is measured indirectly by the Mark and Sweep
@@ -453,12 +459,12 @@ the GC will aim for a very small overhead relative to the total live
 size $L+L'$. Our best solution for the moment is to count on the user
 to compensate by increasing the $o$ parameter.
 \begin{equation}\label{def-Qbar}
-\overline{Q}_n = \overline{O}_n / L_n
+\dot{Q}_n = \dot{O}_n / L_n
 \end{equation}
 
 
 The goal of the pacing logic is now to choose not only $s$ and $m$,
-but also $s'$ and $m'$ to keep $\overline{Q}_n$ close to $\beta$.
+but also $s'$ and $m'$ to keep $\dot{Q}_n$ close to $\beta$.
 
 We will choose $s'$ and $m'$ such that:
 \begin{equation}\label{sigma-prime}
@@ -483,12 +489,12 @@ $I_n = I'_n = 0$
 \item Small-memory mode: when $L+L'$ is small, we want to slow down
 the GC by extending the Idle phase, and let the relative overhead get
 larger than the user setting. As before, we choose one constant, now
-called $\overline{J}$ and let:
+called $\dot{J}$ and let:
 \begin{equation}\label{eqn-Jbar}
-\overline{J} = S_n + S'_n + I_n + I'_n
+\dot{J} = S_n + S'_n + I_n + I'_n
 \end{equation}
 In other words, we switch from Idle to Mark phase when
-$\overline{J}$ words have been allocated (on- and off-heap) since the
+$\dot{J}$ words have been allocated (on- and off-heap) since the
 beginning of the cycle.
 \end{itemize}
 
@@ -527,9 +533,15 @@ From \eqref{eqn-S'}, \eqref{eqn-I'}, \eqref{eqn-M'}, \eqref{eqn-G'} we get:
 \begin{equation}
 G'_{n+1} = e' G_{n+1}
 \end{equation}
-Thus $G'_n$, $O'_n$, $A'_n$, $\overline{O}_n$, $\overline{Q}_n$ are
-also constant, we'll write $G'$, $O'$, $A'$, $\overline{O}$,
-$\overline{Q}$.
+Thus $G'_n$, $O'_n$, $A'_n$, $\dot{O}_n$, $\dot{Q}_n$ are
+also constant, we'll write $G'$, $O'$, $A'$, $\dot{O}$,
+$\dot{Q}$.
+
+Our goal is now to keep $\dot{Q}$ close to $\beta$, so we replace
+\eqref{beta-Q} with:
+\begin{gather}
+\dot{Q} = \beta \label{beta-Qbar}
+\end{gather}
 
 We have the following equations:
 \begin{gather*}
@@ -547,19 +559,19 @@ We have the following equations:
  mM + m'M' = L \\
  O = F + G \\
  O' = F' + G' \\
- \overline{O} = O + O' \\
- \overline{Q} = \overline{O} / L \\
- \overline{Q} = \beta
+ \dot{O} = O + O' \\
+ \dot{Q} = \dot{O} / L \\
+ \dot{Q} = \beta
 \end{gather*}
 
 Solving for $s$ and $s'$ as a function of $\beta$, we get:
-\begin{equation}
+\begin{equation} \label{eqn-s'}
 s + e' s' = 1 + (1+e') (2\sigma+1)/\beta
 \end{equation}
 
 If $e' = 0$ we get the same equation as in the simple heap. If $e' >
 0$, we get to choose $s$ and $s'$ as a function of $e'$ and
-$\overline{Q}$. It is convenient to choose $s$ independently of $e'$,
+$\dot{Q}$. It is convenient to choose $s$ independently of $e'$,
 which means using the same solution as in the simple case:
 \begin{equation} \label{solution-s'}
 s = 1 + (2\sigma+1)/\beta
@@ -576,7 +588,7 @@ s' & = s - 1
 \subsubsection{Small-heap mode}
 
 In small-heap mode, we will keep the same $s$ and $s'$ as for normal
-mode, and concentrate on the choice of $\overline{J}$.
+mode, and concentrate on the choice of $\dot{J}$.
 
 We have the following equations:
 \begin{gather*}
@@ -589,74 +601,79 @@ I' = e'I \\
 M' = e'M \\
 mM + m'M' = L \\
 sS + s'S' = L + F + G \\
-\overline{J} = S + S' + I + I'  \\
+\dot{J} = S + S' + I + I'  \\
 O = F + G  \\
 O' = F' + G' \\
-\overline{O} = O + O'  \\
+\dot{O} = O + O'  \\
 s' = s - 1
 \end{gather*}
 
-We get:
-\begin{equation}
-\overline{O} = 2\sigma\frac{1+e}{s+e's'}L + \overline{J}
-\end{equation}
+I think the previous version is wrong and it's not so easy to bound
+the amount of memory. It looks like the bound will depend on $\beta$.
 
-We must have $I \geq 0$, hence:
-\begin{gather*}
-\overline{J} \geq (1+e')S \\
-\overline{J} \geq (L+F+G)\frac{e+1}{s + e's'} \\
-s + e's' >= (1+e')(L+F+G)/\overline{J}
-\end{gather*}
+%% We get:
+%% \begin{gather*}
+%% \dot{J} = (e'+1)(S+I) \\
+%% \dot{O} = (e'+1)O \\
+%% \dot{O} = 2(e'+1)M + \dot{J}
+%% \end{equation}
 
-We can compute the total size of active memory:
-\begin{equation}
-\overline{A} = A + A' = L + L' + \overline{J} + 2\sigma\frac{1+e'}{s + e's'}
-\end{equation}
+%% We must have $I \geq 0$, hence:
+%% \begin{gather*}
+%% \dot{J} \geq (1+e')S \\
+%% \dot{J} \geq (L+F+G)\frac{e+1}{s + e's'} \\
+%% s + e's' >= (1+e')(L+F+G)/\dot{J}
+%% \end{gather*}
 
-We have:
-\begin{equation}
-\overline{J} = (1+e')(S+I)
-\end{equation}
-hence
-\begin{gather*}
-e' = \overline{J} / (S+I) \\
-e' \leq \overline{J}/S - 1
-\end{gather*}
+%% We can compute the total size of active memory:
+%% \begin{equation}
+%% \dot{A} = A + A' = L + L' + \dot{J} + 2\sigma\frac{1+e'}{s + e's'}
+%% \end{equation}
 
-Now consider the function $f(e') = (1+e')/(s + e'(s-1))$,
-evaluated between $e'=0$ and $e'=\overline{J}/S-1$. Its derivative is
-positive, so it is increasing on the interval, going from $1/s$ to
-$1/(s-1 + S/\overline{J})$. This last bound is less than or equal to
-$1/(s-1)$, thus $f(e')$ stays between $1/s$ and $1/(s-1)$ and we get:
-\begin{equation}
-\overline{O} \leq \overline{J} + 2\sigma L / (s-1)
-\end{equation}
+%% We have:
+%% \begin{equation}
+%% \dot{J} = (1+e')(S+I)
+%% \end{equation}
+%% hence
+%% \begin{gather*}
+%% e' = \dot{J} / (S+I) \\
+%% e' \leq \dot{J}/S - 1
+%% \end{gather*}
 
-We also have:
-\begin{equation}
-L + F + G = sS + s'S'
-\end{equation}
-hence:
-\begin{gather*}
-L \leq sS + s'S' \\
-L \leq s\overline{J}
-\end{gather*}
-and
-\begin{equation}
-\overline{O} \leq (2\sigma+1)\frac{s}{s-1}\overline{J}
-\end{equation}
+%% Now consider the function $f(e') = (1+e')/(s + e'(s-1))$,
+%% evaluated between $e'=0$ and $e'=\dot{J}/S-1$. Its derivative is
+%% positive, so it is increasing on the interval, going from $1/s$ to
+%% $1/(s-1 + S/\dot{J})$. This last bound is less than or equal to
+%% $1/(s-1)$, thus $f(e')$ stays between $1/s$ and $1/(s-1)$ and we get:
+%% \begin{equation}
+%% \dot{O} \leq \dot{J} + 2\sigma L / (s-1)
+%% \end{equation}
 
-Thus, in small-heap mode the value of $e'$ is bounded, and so is the
-absolute overhead.
+%% We also have:
+%% \begin{equation}
+%% L + F + G = sS + s'S'
+%% \end{equation}
+%% hence:
+%% \begin{gather*}
+%% L \leq sS + s'S' \\
+%% L \leq s\dot{J}
+%% \end{gather*}
+%% and
+%% \begin{equation}
+%% \dot{O} \leq (2\sigma+1)\frac{s}{s-1}\dot{J}
+%% \end{equation}
+
+%% Thus, in small-heap mode the value of $e'$ is bounded, and so is the
+%% absolute overhead.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsubsection{Transition between the modes}
 
 At the transition point, we have $I = I' = 0$, so
-$\overline{J} = (1+e')S$. We get:
+$\dot{J} = (1+e')S$. We get:
 \begin{equation}
-\overline{Q} = (2\sigma+1) / (s-1)
+\dot{Q} = (2\sigma+1) / (s-1)
 \end{equation}
 
 which is the same as the normal-mode solution \eqref{solution-s'}.
@@ -675,11 +692,11 @@ will use time quadratic in the length of the list. Since this time
 cannot be predicted, we choose to ignore it: treat this phase as a
 part of the Mark phase, and count work units normally when blocks are
 marked. Note that this degrades the real-time performance of the GC
-for programs that make significant use of ephemerons.
+for programs that make significant use of ephemerons with complex data
+structures (plain weak arrays are not affected).
 \item Ephe\_sweep, where the GC goes once through the list of
 ephemerons to remove the garbage from the list and erase the weak
-pointers as needed. We treat this phase as part of the Mark phase, and
-change our formulas to take this extra work into account.
+pointers as needed.
 \end{itemize}
 
 Note that ephemerons are in a way dual to off-heap memory: they do not
@@ -708,59 +725,84 @@ of cycle $n$.
 $M''_n$ is the amount of ephemerons allocated during the Mark phase
 of cycle $n$.
 
+$W_n$, $W'_n$, $W''_n$ are the amounts of heap data, off-heap
+data, ephemerons allocated during the Ephe\_sweep phase. (W stands for
+``weak'')
+
 $s''$ is the amount of GC work done per word of ephemerons allocated
 during the Mark phase.
 
 $m''$ is the amount of GC work done per word of ephemerons allocated
 during the Mark phase.
 
+$w$, $w'$, $w''$ are the amounts of work done per word of
+heap data, off-heap data, ephemerons allocated during the Ephe\_sweep
+phase.
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Strenghtening the SSA (again)}
 
 We introduce a new SSA for ephemerons:
 
-Steady-state assumption for ephemerons (SSAe): Whenever $x''$
+Steady-state assumption for ephemerons (SSAw): Whenever $x''$
 words of ephemerons are allocated, $x''$ (other) ephemeron words
 become unreachable.
 
 We also introduce the Allocation Rate Assumption for ephemerons
-(ARAe): the ratio of ephemerons to on-heap allocations is a constant
+(ARAw): the ratio of ephemerons to on-heap allocations is a constant
 $e''$. We get:
 \begin{gather}
 S''_n = e''S_n \label{eqn-S''} \\
 I''_n = e''I_n \label{eqn-I''} \\
-M''_n = e''M_n \label{eqn-M''}
+M''_n = e''M_n \label{eqn-M''} \\
+W''_n = e''W_n \label{eqn-W''}
 \end{gather}
 
-From SSAe, we get:
+We also extend the ARA to the Ephe\_sweep phase:
+\begin{gather}
+W'_n = e'W_n  \label{eqn-W'}
+\end{gather}
+
+From SSAw, we get:
 \begin{equation}
 L''_{n+1} = L''_n
 \end{equation}
 
 Thus the amount of ephemerons is constant and we'll call it $L''$.
 
+We have to replace \eqref{eqn-F} and \eqref{eqn-F'} with:
+\begin{gather}
+F_{n+1} = M_n + W_n  \label{eqn-FW} \\
+F'_{n+1} = M'_n + W'_n  \label{eqn-F'W}
+\end{gather}
+
 We also have:
 \begin{gather}
-F''_{n+1} = M''_n  \label{eqn-F''} \\
+F''_{n+1} = M''_n + W''_n  \label{eqn-F''} \\
 G''_{n+1} = F''_n + S''_n + I''_n   \label{eqn-G''}
 \end{gather}
 
-The GC now has more work to do, but only in the Mark phase. Note that
-at the beginning of Mark\_ephe, the ephemeron list contains not only
-all the marked ephemerons: live ($L''$) and floating garbage of the next
+Note that,
+at the beginning of Ephe\_mark, the ephemeron list contains not only
+all the marked ephemerons: live $L''$ and floating garbage of the next
 cycle $F''_{n+1}$ but also all the garbage ephemerons of the next
-cycle $G''_{n+1}$ that will be removed from the list and reclaimed
+cycle $G''_{n+1}$ that will be removed from the list in this phase
+and reclaimed
 during the Sweep phase of the next cycle. However, for the garbage
 ephemerons, the GC does no work beyond removing them from the list,
 unlike the other ones, for which it has to examine each field. Since
-adding the term $G''_{n+1}$ makes the stability condition really hard
-to study, we will simplify things by not counting them as work.
+adding the term $G''_{n+1}$ to \eqref{eqn-W''} makes the stability
+condition really hard
+to study, we will simplify things by not counting them as work, thus
+incurring another slight degradation of the real-time performance.
 
 Equations
 \eqref{eqn-sS'} and \eqref{eqn-mM'} become invalid and are replaced with:
 \begin{gather}
 sS_n + s'S'_n + s''S''_n = L + F_n + G_n \label{eqn-sS''}  \\
-mM_n + m'M'_n + m''M''_n = L + L'' + F''_{n+1}  \label{eqn-mM''}
+mM_n + m'M'_n + m''M''_n = L  \label{eqn-mM''} \\
+wW_n + w'W'_n + w''W''_n = L'' + F''_{n+1}  \label{eqn-wW''}
 \end{gather}
 
 
@@ -771,38 +813,42 @@ The ephemerons cause more GC work, but they do not occupy any memory
 beyond what is already accounted for, so our definitions of overhead
 does not need to be changed.
 
-We have two more parameters to choose, $s''$ and $m''$, and the goal
-is still to keep $\overline{Q}_n$ close to $\beta$.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{New parameters}
 
-Once again and for the same reason as above, we will choose $s''$ and
-$m''$ such that:
-\begin{equation}
-s''/m'' = \sigma
-\end{equation}
+We have five more parameters to choose: $s''$, $m''$, $w$, $w'$,
+$w''$, and the goal
+is still to keep $\dot{Q}_n$ close to $\beta$.
+
+As we will see, there is additional overhead associated to the amount
+of live ephemerons present in the heap. To deal with this, we
+introduce a new parameter $\beta''$ and change our goal from
+\eqref{beta-Qbar} to:
+\begin{gather}
+\beta \leq \dot{Q} \leq \beta + \beta'' \label{beta''-Qbar}
+\end{gather}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection[Choice of I, I', I'']{Choice of $I$, $I'$, $I''$}
 
-Once again, $I$, $I'$, $I''$ are related by ARA and ARAe and
+Once again, $I$, $I'$, $I''$ are related by ARA and ARAw and
 \eqref{eqn-I'} and \eqref{eqn-I''}, so we have only one variable to
-set. We could keep $\overline{J}$ as is, but we choose to count
-ephemerons in the number of things allocated
-during Sweep+Idle and use:
-\begin{equation}
-\overline{\overline{J}} = S_n + S'_n + S''_n + I_n + I'_n + I''_n
-\end{equation}
-% and hope the equations turn out simple...
+set. We'll keep $\dot{J}$ as our primary variable.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection[Solving for s, s', s'', m, m', m'']
-{Solving for $s$, $s'$, $s''$, $m$, $m'$, $m''$}
+\subsection[Solving for s, s', s'', m, m', m'', w, w', w'']
+{Solving for $s$, $s'$, $s''$, $m$, $m'$, $m''$, $w$, $w'$, $w''$}
 
-Using SSAe, we have $L''$ constant; assuming $s''$ and $m''$ constant
-and using \eqref{eqn-M'}, \eqref{eqn-M''}, \eqref{eqn-F''},
-\eqref{eqn-mM''} we conclude that $M$, $M'$, $M''$, $F$, $F'$, $F''$
+Assuming $m''$ constant
+and using \eqref{eqn-M'}, \eqref{eqn-M''},
+\eqref{eqn-mM''} we conclude that $M$, $M'$, $M''$
 are also constant.
+
+Then, using \eqref{eqn-wW''}, \eqref{eqn-F''}, \eqref{eqn-W'},
+\eqref{eqn-W''}, \eqref{eqn-FW}, \eqref{eqn-F'W} we get that $W$,
+$W'$, $W''$, $F$, $F'$, $F''$ are constant.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -815,6 +861,7 @@ S''_n = e''S_n \\
 sS_n + s'S'_n + s''S''_n = L + F + G_n \\
 G_{n+1} = F + S_n
 \end{gather*}
+
 We get:
 \begin{equation}
 G_{n+1} = F + L/(s+s'e'+s''e'') + F/(s+s'e'+s''e'') + G_n/(s+s'e'+s''e'')
@@ -825,35 +872,145 @@ assume $s > 1$, which ensures the condition is true for all values of
 $e'$ and $e''$. We also assume that $G_n$ has converged to its limit,
 which we again call $G$.
 
-Then $S$, $S'$, $S''$, $G'$, $G''$, $O$, $O'$, $A$, $A'$,
-$\overline{O}$, $\overline{Q}$ are also constant.
+Then $S$, $S'$, $S''$, $G'$, $G''$, $O$, $O'$,
+$\dot{O}$, $\dot{Q}$ are also constant.
 
 We have the following:
 \begin{align*}
-s/m &= \sigma  &  s'/m' &= \sigma  &  s''/m'' &= \sigma  \\
+s/m &= \sigma  &  s'/m' &= \sigma \\
 I &= 0  &  I' &= 0  &  I'' &= 0  \\
  & & M' &= e'M  &  M'' &= e''M \\
  & & S' &= e'S  &  S'' &= e''S \\
-F &= M & F' &= M' &  F'' &= M'' \\
-G &= F + S + I  &  G' &= F' + S' + I'  &  G'' &= F'' + S'' + I'' \\
-O &= F + G  &  O' &= F' + G' & \overline{O} &= O + O' \\
-\overline{Q} &= \overline{O}/L  & sS + s'S' + s''S'' &= L + F + G \\
-\overline{Q} &= \beta  & mM + m'M' + m''M'' &= L + L'' + F''
+F &= M + W  &  F' &= M' + W'  &  F'' &= M'' + W'' \\
+G &= F + S + I  &  G' &= F' + S' + I' \\
+O &= F + G  &  O' &= F' + G' & \dot{O} &= O + O' \\
+\dot{Q} &= \dot{O}/L  & sS + s'S' + s''S'' &= L + F + G \\
+             &         &  mM + m'M' + m''M'' &= L \\
+             &         &  wW + w'W' + w''W'' &= L'' + F''
 \end{align*}
 
-Let us define
-\begin{equation}
-\overline{s} = s + e's' + e''s''
-\end{equation}
+Let us define the following intermediate variables to make the
+formulas easier to handle:
+\begin{gather}
+\ddot{s} = s + e's' + e''s'' \\
+\ddot{m} = m + e'm' + e''m'' \\
+\ddot{w} = w + e'w' + e''w'' \\
+\overline{s} = \ddot{s} - 1 \\
+\overline{w} = \ddot{w} - e''
+\end{gather}
+
 We get:
-\begin{equation}
-(\overline{s} - 1)(\overline{s} - e''\sigma)\beta
-= (1 + e')(\overline{s}(2\sigma + 1) + 2\sigma \frac{L''}{L}
-  - e''\sigma)
-\end{equation}
+\begin{gather}
+\overline{s} S = L + 2(M + W) \\
+\ddot{m}M = L \\
+\overline{w}W = L''
+\end{gather}
+
+Then we can compute $\dot{O}$ as a function of $L$, $L''$, $e'$,
+$\overline{s}$, $\ddot{m}$, $\overline{w}$:
+
+\begin{gather}
+\dot{O} = (e'+1)(S + 2(M+W)) \\
+\frac{\dot{O}}{e'+1}
+ = \frac{L}{\overline{s}} + \frac{2(M+W)}{\overline{s}} + 2(M+W) \\
+\frac{\dot{O}}{e'+1}
+ = \frac{L}{\overline{s}} + 2(M+W)\frac{\ddot{s}}{\overline{s}} \\
+\frac{\dot{O}}{e'+1}
+ = \frac{L}{\overline{s}} + \frac{2L\ddot{s}}{\overline{s}\ddot{m}}
+     + \frac{2L''\ddot{s}}{\overline{s}\overline{w}}
+\end{gather}
+
+We make some simplifying decisions in order to cut down the number of
+variables: we make $\ddot{m}$ and $\overline{w}$ both proportional to
+$\ddot{s}$ and introduce a new intermediate variable $\gamma$:
+\begin{gather}
+\ddot{m} = \ddot{s} / \sigma \label{eqn-ms} \\
+\overline{w} = 2\ddot{s} / \gamma \label{eqn-ws}
+\end{gather}
+
+Then we get:
+\begin{gather}
+\frac{\dot{O}}{e'+1}
+ = \frac{L}{\overline{s}} + 2\sigma\frac{L}{\overline{s}}
+     + \frac{\gamma L''}{\overline{s}} \\
+\dot{Q}\overline{s} = (e'+1) (1 + 2\sigma + \gamma\frac{L''}{L})
+\end{gather}
+
+$L''$ is the amount of live ephemerons and $L$ is the amount of live
+data, which includes ephemerons. Thus $L''/L$ is between 0 and 1, and
+we have:
+
+\begin{gather}
+\frac{1}{\overline{s}}(e'+1)(1 + 2\sigma) \leq \dot{Q} \leq
+\frac{1}{\overline{s}}(e'+1)(1 + 2\sigma + \frac{\gamma L''}{L})
+\end{gather}
+
+By matching this against \eqref{beta''-Qbar}, we get:
+
+\begin{gather}
+\beta = \frac{1}{\overline{s}}(e'+1)(1 + 2\sigma) \\
+\beta'' = \frac{1}{\overline{s}}(e'+1)\gamma
+\end{gather}
+
+This gives :
+\begin{gather}
+\gamma = \frac{\beta''}{\beta}(2\sigma+1)
+\end{gather}
+
+Now we have:
+\begin{gather}
+\overline{s} = \frac{e'+1}{\beta}(2\sigma+1) \\
+s - 1 + e's' + e''s'' = (e'+1)(2\sigma+1)/\beta
+\end{gather}
+
+This looks pleasantly similar to \eqref{eqn-s'} and indeed we
+have to choose the same $s$ and $s'$ as before for this to be true for
+all values of $e'$ and $e''$. This means we remain compatible with
+ephemeron-free programs.
+
+\begin{gather}
+s = 1 + (2\sigma + 1)/\beta \\
+s' = (2\sigma + 1)/\beta
+\end{gather}
+
+This leaves us with the rather counter-intuitive $s'' = 0$.
+
+\bigskip
+
+Now we use \eqref{eqn-ms} and \eqref{eqn-ws} to derive the remaining
+coefficients:
+\begin{gather}
+m = s/\sigma \\
+m' = s'/\sigma \\
+m'' = s''/\sigma = 0 \\
+w = 2s/\gamma = 2/\gamma + 2/\beta''\\
+w' = 2s'/\gamma = 2/\beta''\\
+w'' = 1
+\end{gather}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Small-heap mode}
+
+
+We have $G_{n+1} = F + S_n + I_n = F + J$, which is constant. Then $S$,
+$S'$, $S''$, $G'$, $G''$, $O$, $O'$, $\dot{O}$, $\dot{Q}$
+are also constant.
+
+We have the following:
+\begin{align*}
+S+I &= J & S'+I' &= J' \\
+ & & M' &= e'M  &  M'' &= e''M \\
+ & & S' &= e'S  &  S'' &= e''S \\
+F &= M + W  &  F' &= M' + W'  &  F'' &= M'' + W'' \\
+G &= F + S + I  &  G' &= F' + S' + I' \\
+O &= F + G  &  O' &= F' + G' & \dot{O} &= O + O' \\
+\dot{Q} &= \dot{O}/L  & sS + s'S' + s''S'' &= L + F + G \\
+             &         &  mM + m'M' + m''M'' &= L \\
+             &         &  wW + w'W' + w''W'' &= L'' + F''
+\end{align*}
 
 ...
-
 
 \end{document}
 
