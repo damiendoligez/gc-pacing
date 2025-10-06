@@ -288,11 +288,17 @@ mM = L
 \end{gather*}
 
 These equations are mostly linear and we can eliminate all the
-uppercase variables to get:
+uppercase variables to get\footnote{
+Checked by Rocq, with the additional conditions
+$L \neq 0$,
+$s \neq 0$,
+$Q \neq 0$
+}
 \begin{gather*}
 s = 1 + (2\sigma + 1)/\beta \\
 m = s/\sigma
 \end{gather*}
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsubsection{Small-heap mode}
@@ -314,11 +320,15 @@ F = M \\
 G = M + J \\
 \end{gather*}
 
-We get
+We get\footnote{Checked by Rocq, with the additional conditions
+$I \ge 0$,
+$s > 0$
+}
 \begin{gather*}
 A = sJ - sI \\
 A \leq sJ
 \end{gather*}
+
 
 This gives us a nice bound on the active heap size, which is also a
 bound on the absolute overhead.
@@ -545,8 +555,8 @@ Our goal is now to keep $\dot{Q}$ close to $\beta$, so we replace
 
 We have the following equations:
 \begin{gather*}
- s/m = \sigma \\
- s' / m' = \sigma \\
+ s = \sigma m \\
+ s' = \sigma m'\\
  I = 0 \\
  I' = 0 \\
  M' = e' M \\
@@ -561,12 +571,18 @@ We have the following equations:
  O' = F' + G' \\
  \dot{O} = O + O' \\
  \dot{Q} = \dot{O} / L \\
- \dot{Q} = \beta
 \end{gather*}
 
-Solving for $s$ and $s'$ as a function of $\beta$, we get:
+Solving for $s$ and $s'$ as a function of $\dot{Q}$, we get\footnote{
+Checked by Rocq, with the additional conditions
+$L \neq 0$,
+$e' \ge 0$,
+$s > 0$,
+$s' > 0$,
+$\dot{Q} \neq 0$
+}
 \begin{equation} \label{eqn-s'}
-s + e' s' = 1 + (1+e') (2\sigma+1)/\beta
+s + e' s' = 1 + (1+e') (2\sigma+1)/\dot{Q}
 \end{equation}
 
 If $e' = 0$ we get the same equation as in the simple heap. If $e' >
@@ -592,11 +608,13 @@ mode, and concentrate on the choice of $\dot{J}$.
 
 We have the following equations:
 \begin{gather*}
+s = m * \sigma \\
+s' = m' * \sigma \\
 G = F + S + I  \\
 G' = F' + S' + I'  \\
 F' = M'  \\
 F = M \\
-S' = eS \\
+S' = e'S \\
 I' = e'I \\
 M' = e'M \\
 mM + m'M' = L \\
@@ -605,78 +623,28 @@ sS + s'S' = L + F + G \\
 O = F + G  \\
 O' = F' + G' \\
 \dot{O} = O + O'  \\
-s' = s - 1
+s = 1 + (2\sigma+1)/\beta \\
+s' = (2\sigma+1)/\beta \\
 \end{gather*}
 
-I think the previous version is wrong and it's not so easy to bound
-the amount of memory. It looks like the bound will depend on $\beta$.
-
-%% We get:
-%% \begin{gather*}
-%% \dot{J} = (e'+1)(S+I) \\
-%% \dot{O} = (e'+1)O \\
-%% \dot{O} = 2(e'+1)M + \dot{J}
-%% \end{equation}
-
-%% We must have $I \geq 0$, hence:
-%% \begin{gather*}
-%% \dot{J} \geq (1+e')S \\
-%% \dot{J} \geq (L+F+G)\frac{e+1}{s + e's'} \\
-%% s + e's' >= (1+e')(L+F+G)/\dot{J}
-%% \end{gather*}
-
-%% We can compute the total size of active memory:
-%% \begin{equation}
-%% \dot{A} = A + A' = L + L' + \dot{J} + 2\sigma\frac{1+e'}{s + e's'}
-%% \end{equation}
-
-%% We have:
-%% \begin{equation}
-%% \dot{J} = (1+e')(S+I)
-%% \end{equation}
-%% hence
-%% \begin{gather*}
-%% e' = \dot{J} / (S+I) \\
-%% e' \leq \dot{J}/S - 1
-%% \end{gather*}
-
-%% Now consider the function $f(e') = (1+e')/(s + e'(s-1))$,
-%% evaluated between $e'=0$ and $e'=\dot{J}/S-1$. Its derivative is
-%% positive, so it is increasing on the interval, going from $1/s$ to
-%% $1/(s-1 + S/\dot{J})$. This last bound is less than or equal to
-%% $1/(s-1)$, thus $f(e')$ stays between $1/s$ and $1/(s-1)$ and we get:
-%% \begin{equation}
-%% \dot{O} \leq \dot{J} + 2\sigma L / (s-1)
-%% \end{equation}
-
-%% We also have:
-%% \begin{equation}
-%% L + F + G = sS + s'S'
-%% \end{equation}
-%% hence:
-%% \begin{gather*}
-%% L \leq sS + s'S' \\
-%% L \leq s\dot{J}
-%% \end{gather*}
-%% and
-%% \begin{equation}
-%% \dot{O} \leq (2\sigma+1)\frac{s}{s-1}\dot{J}
-%% \end{equation}
-
-%% Thus, in small-heap mode the value of $e'$ is bounded, and so is the
-%% absolute overhead.
+We get\footnote{
+Checked by Rocq with the additional conditions
+$m' > 0$,
+$\sigma > 0$,
+$\beta > 0$,
+$e' >= 0$,
+$M >= 0$,
+$L >= 0$
+}
+\begin{gather*}
+\dot{O} \leq \dot{J} + \frac{2L}{m'} \leq \dot{J} + \beta L
+\end{gather*}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsubsection{Transition between the modes}
 
-At the transition point, we have $I = I' = 0$, so
-$\dot{J} = (1+e')S$. We get:
-\begin{equation}
-\dot{Q} = (2\sigma+1) / (s-1)
-\end{equation}
-
-which is the same as the normal-mode solution \eqref{solution-s'}.
+TBD
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Ephemerons}
@@ -908,6 +876,16 @@ We get:
 
 Then we can compute $\dot{O}$ as a function of $L$, $L''$, $e'$,
 $\overline{s}$, $\ddot{m}$, $\overline{w}$:
+
+\bigskip
+\bigskip
+\bigskip
+
+{\bf Note: unfortunately, all that follows is wrong because a term is missing.}
+
+\bigskip
+\bigskip
+\bigskip
 
 \begin{gather}
 \dot{O} = (e'+1)(S + 2(M+W)) \\
