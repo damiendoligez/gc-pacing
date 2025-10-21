@@ -380,20 +380,33 @@ Theorem ephe_small :
   mdd = m + e' * m' + e'' * m'' ->
   wdd = w + e' * w' + e'' * w'' ->
   sigma > 0 ->
-  gamma > 0 ->
   beta > 0 ->
+  beta'' > 0 ->
   e'' >= 0 ->
   e' >= 0 ->
   M > 0 ->
-  L > 0 ->
   L'' >= 0 ->
+  L'' <= L ->
   Od <= Jd + (beta + beta'') * L.
 Proof.
 intros.
-assert (sdd * M = sigma * L) as sddM.
+assert (sdd * M = sigma * L) as HsddM.
 {
   subst sdd s s' s'' M' M''.
   nra.
+}
+
+assert (0 < /beta).
+{
+  assert ( beta * 0 < beta / beta). field_simplify. nra. nra.
+  apply (Rmult_lt_reg_l beta); nra.
+}
+
+assert (gamma > 0).
+{
+  subst gamma.
+  enough (beta'' * (sigma + 1) / beta * beta > 0 * beta) by nra.
+  field_simplify; nra.
 }
 
 assert (Od * sdd = Jd * sdd + (e' + 1) * 2 * sigma * L + (e' + 1) * gamma * L'' + (e' + 1) * gamma * e'' * M).
@@ -417,10 +430,10 @@ assert (Od * sdd = Jd * sdd + (e' + 1) * 2 * sigma * L + (e' + 1) * gamma * L'' 
   replace (wdd - e'') with (2*sdd/gamma) in H1 by nra.
   replace (2 * sdd / gamma * W) with (2*sdd*W/gamma) in H1 by nra.
   assert (2 * sdd * W /gamma * gamma = (L'' + e'' * M) * gamma) by nra.
-  field_simplify in H2. 2: { auto. }
+  field_simplify in H2. 2: { nra. }
   replace ((e' + 1) * (2 * M + 2 * W + J) * sdd) with ((e' + 1) * 2 * (sdd*M) + (e'+1) * (2 * sdd * W) + (e'+1) *J * sdd) by nra.
   rewrite H2.
-  rewrite sddM.
+  rewrite HsddM.
   nra.
 }
 
@@ -432,12 +445,6 @@ replace (s * S + s' * S' + s'' * S'') with (sdd * S) in H23 by nra.
 replace (m * M + m' * M' + m'' * M'') with (mdd * M) in H24 by nra.
 
 assert (s'' > 0) by nra.
-
-assert (0 < /beta).
-{
-  assert ( beta * 0 < beta / beta). field_simplify. nra. nra.
-  apply (Rmult_lt_reg_l beta); nra.
-}
 
 assert (sdd > 0).
 {
@@ -478,26 +485,11 @@ assert ((e'+1) * (2*sigma+1) <= beta * sdd).
   field_simplify; nra.
 }
 
-
-
-assert ((e'+1)*(2*sigma+1) <= beta * sdd).
-{
-  subst sdd.
-  rewrite H26. rewrite H27.
-  field_simplify. 2: { nra. }
-  replace (2 * e' * sigma + e' + 2 * sigma + beta * e'' * s'' + beta + 1)
-     with (2 * e' * sigma + e' + 2 * sigma + 1 + (beta * e'' * s'' + beta)) by nra.
-  assert (0 <= beta) by nra.
-  assert (0 <= beta * e'') by nra.
-  assert (0 <= beta * e'' * s'') by nra.
-  assert (0 <= beta * e'' * s'' + beta) by nra.
-  nra.
-}
-
 assert (Od * sdd * s'' * (2 * sigma + 1) <=
-Jd * sdd * s'' * (2 * sigma + 1) + 2 * sigma * L * s'' * beta * sdd +
-gamma * L'' * s'' * beta * sdd +
-gamma * sigma * L * beta * sdd).
+        Jd * sdd * s'' * (2 * sigma + 1) +
+        2 * sigma * L * s'' * beta * sdd +
+        gamma * L'' * s'' * beta * sdd +
+        gamma * sigma * L * beta * sdd).
 {
   assert ((e' + 1) * 2 * sigma * L * s'' * (2 * sigma + 1) <= 2 * sigma * L * s'' * (beta * sdd)).
   {
@@ -513,11 +505,89 @@ gamma * sigma * L * beta * sdd).
       with (gamma * L'' * s'' * ((e'+1)*(2*sigma+1))) by nra.
     assert (gamma * L'' * s'' >= 0 * gamma * L'' * s'').
     apply (Rmult_ge_compat_r); nra.
+    nra.
   }
+  nra.
 }
 
+assert (gamma * beta = beta'' * s'').
+{
+  assert (gamma * beta = beta'' * s'' / beta * beta) by nra.
+  field_simplify in H19; nra.
+}
 
+replace (gamma * sigma * L * beta * sdd)
+   with (gamma * beta * sigma * L * sdd) in H18 by nra.
+rewrite H19 in H18.
 
+replace (gamma * L'' * s'' * beta * sdd)
+  with (beta'' * (sigma + 1) * L'' * s'' * sdd) in H18.
+  2:{
+    replace (gamma * L'' * s'' * beta * sdd)
+       with (gamma * beta * L'' * s'' * sdd) by nra.
+    rewrite H19.
+    nra.
+  }
+
+assert (beta'' * (sigma + 1) * s'' * sdd >= 0).
+{
+  assert (beta'' * (sigma + 1) * s'' * sdd >= 0 * (sigma +1) * s'' * sdd).
+  {
+    apply (Rmult_ge_compat_r sdd). nra.
+    apply (Rmult_ge_compat_r s''). nra.
+    apply (Rmult_ge_compat_r (sigma + 1)). nra.
+    nra.
+  }
+  field_simplify in H20.
+  field_simplify.
+  auto.
+}
+
+assert (beta'' * (sigma + 1) * L'' * s'' * sdd <= beta'' * sdd * s'' * (sigma + 1) * L) by nra.
+
+assert (Od * sdd * s'' * (2 * sigma + 1) <=
+  Jd * sdd * s'' * (2 * sigma + 1) +
+  2 * sigma * L * s'' * beta * sdd +
+  beta'' * sdd * s'' * (sigma + 1) * L +
+  beta'' * s'' * sigma * L * sdd) by nra.
+clear H18.
+
+assert (Od * sdd * s'' * (2 * sigma + 1) <=
+  Jd * sdd * s'' * (2 * sigma + 1) +
+  2 * sigma * L * s'' * beta * sdd +
+  beta'' * L * sdd * s'' * (2*sigma + 1)) by nra.
+clear H25.
+
+assert (2 * sigma * L * s'' * beta * sdd <= (2 * sigma + 1) * L * s'' * beta * sdd).
+{
+  apply (Rmult_le_compat_r). nra.
+  apply (Rmult_le_compat_r). nra.
+  apply (Rmult_le_compat_r). nra.
+  apply (Rmult_le_compat_r). nra.
+  nra.
+}
+
+replace ((2 * sigma + 1) * L * s'' * beta * sdd)
+   with (beta * L * sdd * s'' * (2 * sigma + 1)) in H25 by nra.
+
+assert (Od * sdd * s'' * (2 * sigma + 1) <=
+  Jd * sdd * s'' * (2 * sigma + 1) +
+  beta * L * sdd * s'' * (2 * sigma + 1) +
+  beta'' * L * sdd * s'' * (2*sigma + 1)) by nra.
+clear H18.
+
+replace (Jd * sdd * s'' * (2 * sigma + 1) +
+         beta * L * sdd * s'' * (2 * sigma + 1) +
+         beta'' * L * sdd * s'' * (2 * sigma + 1))
+   with ((Jd + (beta + beta'') * L) * sdd * s'' * (2*sigma+1)) in H44 by nra.
+
+apply (Rmult_le_reg_r sdd). nra.
+apply (Rmult_le_reg_r s''). nra.
+apply (Rmult_le_reg_r (2*sigma+1)). nra.
+auto.
+Qed.
+
+(*
 
 assert (Od = Jd + (e'+1)/sdd * (2 * sigma * L + gamma * (L'' + e'' * M))).
 {
@@ -536,3 +606,4 @@ assert ((e' + 1) / sdd <= beta / (2 * sigma + 1)).
 
 
 enough (Od * sdd <= Jd * sdd + (beta + beta'') * L * sdd). { apply (Rmult_le_reg_r sdd); nra. }
+*)
