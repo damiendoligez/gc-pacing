@@ -1,0 +1,11 @@
+# LaTeX stuff
+*.aux
+*.log
+*.sw[op]
+
+# VSCode stuff
+.vscode
+
+# Rocq stuff
+*.glob
+.nra.cache
