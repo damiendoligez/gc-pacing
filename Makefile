@@ -9,3 +9,5 @@ full:
 	pdflatex ${TEXOPTIONS} gc-pacing.tex <&-
 	pdflatex ${TEXOPTIONS} gc-pacing.tex <&-
 
+equations.vo: equations.v
+	rocq c $^
