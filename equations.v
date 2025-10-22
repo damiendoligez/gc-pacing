@@ -39,7 +39,7 @@ assert (Q * (s-1) = 2 * sigma + 1) by (apply (Rmult_eq_reg_r s); auto). clear H2
 assert (Q * (s - 1) / Q = (2 * sigma + 1) / Q) by congruence. clear H0.
 replace (Q * (s - 1) / Q) with (s-1) in H1 by now field.
 assert (1 + (s - 1) = 1 + (2 * sigma + 1) / Q) by congruence. clear H1.
-exact H0.
+nra.
 Qed.
 
 Theorem simple_small :
