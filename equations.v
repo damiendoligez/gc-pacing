@@ -2,7 +2,6 @@ From Stdlib Require Import Reals.
 From Stdlib Require Import Psatz.
 Open Scope R_scope.
 
-(*
 Theorem simple_large :
   forall (F G I L M O Q S m s sigma : R) ,
     s = m * sigma ->
@@ -31,6 +30,7 @@ rewrite <- H in H0.
 subst O.
 assert (Q * (s-1) * s = (2 * M + S) / L * (s-1) * s) by congruence. clear H1.
 replace ((2 * M + S) / L * (s-1) * s) with ((2 * M * (s-1) + S * (s-1)) / L * s) in H2 by now field.
+replace (1+(s-1)) with s in H0 by field.
 rewrite H3 in H2. clear H3.
 replace (2 * M * (s - 1) + (L + 2 * M)) with (2*(s*M) + L) in H2 by field.
 rewrite H0 in H2. clear H0.
@@ -39,7 +39,6 @@ assert (Q * (s-1) = 2 * sigma + 1) by (apply (Rmult_eq_reg_r s); auto). clear H2
 assert (Q * (s - 1) / Q = (2 * sigma + 1) / Q) by congruence. clear H0.
 replace (Q * (s - 1) / Q) with (s-1) in H1 by now field.
 assert (1 + (s - 1) = 1 + (2 * sigma + 1) / Q) by congruence. clear H1.
-replace (1+(s-1)) with s in H0 by field.
 exact H0.
 Qed.
 
@@ -301,16 +300,6 @@ subst Qd Od O O' M' W' S'.
 replace ((2 * M + 2 * W + S + (2 * (e' * M) + 2 * (e' * W) + e' * S)))
   with ((e'+1) * (2*M + 2*W + S)) by nra.
 enough ((2 * M + 2 * W + S) / L * sb = (1 + 2 * sigma + gamma * (L''/L + e''/mdd))) by nra.
-(*
-assert (wb * mdd <> 0).
-{
-  rewrite H28. rewrite H27.
-  assert (/gamma <> 0) by now apply Rinv_neq_0_compat.
-  assert (/sigma <> 0) by now apply Rinv_neq_0_compat.
-  assert (sdd <> 0) by nra.
-  apply Rmult_integral_contrapositive_currified; nra.
-}
-*)
 replace ((2 * M + 2 * W + S) / L * sb)
   with ((2 * sb*M + 2 * sb*W + sb*S) / L) by nra.
 rewrite H1.
@@ -340,7 +329,7 @@ replace (1 + 2 * sigma + gamma * (L'' / L + e''/mdd))
 apply Rmult_eq_compat_r.
 nra.
 Qed.
-*)
+
 
 Theorem ephe_small :
   forall (S S' S'' I I' I'' M M' M''  W W' W'' J J' e' e'' s s' s'' m m' m'' w w' w''
@@ -586,24 +575,3 @@ apply (Rmult_le_reg_r s''). nra.
 apply (Rmult_le_reg_r (2*sigma+1)). nra.
 auto.
 Qed.
-
-(*
-
-assert (Od = Jd + (e'+1)/sdd * (2 * sigma * L + gamma * (L'' + e'' * M))).
-{
-  apply (Rmult_eq_reg_r sdd). field_simplify; nra. nra.
-}
-assert ((e' + 1) / sdd <= beta / (2 * sigma + 1)).
-{
-  assert (sdd >= (e' + 1) * s').
-  subst sdd.
-  field_simplify.
-  nra.
-}
-
-
-
-
-
-enough (Od * sdd <= Jd * sdd + (beta + beta'') * L * sdd). { apply (Rmult_le_reg_r sdd); nra. }
-*)
