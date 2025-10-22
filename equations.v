@@ -384,7 +384,7 @@ Theorem ephe_small :
   beta'' > 0 ->
   e'' >= 0 ->
   e' >= 0 ->
-  M > 0 ->
+  M >= 0 ->
   L'' >= 0 ->
   L'' <= L ->
   Od <= Jd + (beta + beta'') * L.
@@ -495,8 +495,8 @@ assert (Od * sdd * s'' * (2 * sigma + 1) <=
   {
     replace ((e' + 1) * 2 * sigma * L * s'' * (2 * sigma + 1))
        with (2 * sigma * L * s'' * ((e'+1)*(2*sigma+1))) by nra.
-    assert (2*sigma*L*s'' > 0 * sigma * L * s'').
-    apply (Rmult_gt_compat_r); nra.
+    assert (2*sigma*L*s'' >= 0 * sigma * L * s'').
+    apply (Rmult_ge_compat_r); nra.
     nra.
   }
   assert ((e' + 1) * gamma * L'' * s'' * (2 * sigma + 1) <= gamma * L'' * s'' * (beta * sdd)).
