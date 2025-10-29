@@ -3,11 +3,13 @@
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{amssymb}
+\usepackage{bbding}
 \usepackage{hyperref}
 
 \begin{document}
 
-\title{GC control loop for OCaml 5 (rough draft)}
+\title{GC control loop for OCaml 5\\
+Design document}
 \author{Stephen Dolan and Damien Doligez}
 \date{\today}
 
@@ -19,7 +21,7 @@
 \label{prerequisites}
 
 \begin{itemize}
-\item Stephen Dolan's mark-delay patch (rebased and adapted by Nick
+\item[\Checkmark] Stephen Dolan's mark-delay patch (rebased and adapted by Nick
 Barnes, \href{https://github.com/ocaml/ocaml/pull/13580}{\#13580}),
 which delays the marking of roots until sweeping is mostly done. We'll
 make the simplifying assumption that sweeping is completed before the
@@ -28,7 +30,7 @@ roots are marked.
 \href{https://github.com/oxcaml/oxcaml/pull/3618}{oxcaml\#3618}, which
 ensures that the work done to mark the roots and the marking work done by the
 write barrier are counted as normal marking work.
-\item Sadiq Jaffer's patch,
+\item[\Checkmark] Sadiq Jaffer's patch,
 \href{https://github.com/ocaml/ocaml/pull/13616}{\#13616}, which ensures that
 the sweeping work is independent of the size and shape of the free
 list (formally, it is bounded by a linear function of
