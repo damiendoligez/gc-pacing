@@ -63,8 +63,8 @@ numbers as reals.
 
 About words: we count allocations and work in units of (heap) words,
 including header and contents of each block. For marking and sweeping
-work, treating one block is counted as a number of work units equal to
-its size (with header). This is a simple-minded model of the actual
+work, each block is counted as a number of work units equal to
+its size (in words, with header). This is a simple-minded model of the actual
 cost of doing the work. It allows us to bound the time spent in a
 slice (hence the maximum latency of the GC) although it doesn't give a
 very good uniformity (the latency distribution is rather wide).
@@ -124,9 +124,12 @@ $n$
 $M_n$ is the amount of data allocated during the Mark phase of cycle
 $n$
 
-$s$ is the amount of GC work done per word allocated in the Sweep phase
+$s$ is the amount of sweeping work done per word allocated
 
-$m$ is the amount of GC work done per word allocated in the Mark phase
+$m$ is the amount of marking work done per word allocated
+
+Note that $s$ and $m$ are exclusive: for each word allocated we do
+either $s$ words of sweeping or $m$ words of marking.
 
 \bigskip
 
@@ -140,12 +143,12 @@ reaction.
 \begin{equation}\label{def-beta}
 \beta = o/100
 \end{equation}
-This is the overhead setting expressed in a convenient unit.
+This is the overhead setting expressed in a natural unit.
 
 \begin{equation}\label{def-sigma}
 \sigma = s/m
 \end{equation}
-This is the ratio of sweeping to marking ``speed''. This
+This is the ratio of sweeping to marking ``speed''. It
 will be chosen to make the GC pauses of the Sweep and Mark phases
 approximately equal in real-time. This is normally larger than 1
 because it turns out that the GC code needs to do more work to mark
@@ -161,7 +164,7 @@ We call this \emph{raw overhead}. This is our measure of the memory
 overhead of the system. It is
 composed of all the garbage that is present at the  beginning of the
 GC cycle. In an ideal world, the free list is empty at the beginning
-of the cycle because we are starting to Sweep and replenish the free
+of the cycle because we are starting to sweep and replenish the free
 list. In reality, the free list may be non-empty, and there will be
 other overhead caused by auxiliary data structures and
 fragmentation. Since these cannot be controlled by changing the GC
@@ -239,7 +242,7 @@ interested in running the GC in two modes:
 phase, so we set $I_n = 0$.
 \item small-heap mode: when $L$ is very small,  we can avoid running
 the major GC at full speed, at the cost of a small amount of memory
-(raw overhead), even though that translates to an unbounded relative
+(raw overhead) even though that translates to an unbounded relative
 overhead. To this end, we choose a constant J (for example, at the
 same order of magnitude as the minor heap size) and decide we must
 allocate J words before we start marking:
@@ -267,7 +270,7 @@ G_{n+1} & = F + S_n \\
 \end{equation}
 
 This converges on a constant $G$ iff $s > 1$. When $s \leq 1$, the
-sequence G will keep growing and memory use is unbounded.
+sequence $G_n$ will keep growing and memory use is unbounded.
 
 We now assume $s > 1$. We also assume that $G_n$ has converged to its
 limit, which we call $G$.
@@ -309,7 +312,14 @@ From \eqref{eqn-G} and \eqref{def-J} we get:
 G_{n+1} = F + J
 \end{equation}
 
-$G$ is again constant, and so are $S$, $I$, $O$, $Q$. We get the
+$G$ is again constant, and so are $S$, $I$, $O$, $Q$.
+
+We define the active heap size $A$ to be live data plus overhead:
+\begin{gather*}
+A = L + O
+\end{gather*}
+
+ We get the
 following equations:
 \begin{gather*}
 J = S + I      \\
