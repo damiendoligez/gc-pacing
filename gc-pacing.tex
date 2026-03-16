@@ -103,30 +103,30 @@ of custom blocks or ephemerons.
 We define the following variables:
 
 \bigskip
-$o$ is the \verb'overhead' parameter of the runtime system, given by
+$o$ : \verb'overhead' parameter of the runtime system, given by
 the user.
 
-$L_n$ is the amount of live (marked and reachable) data at the
+$L_n$ : amount of live (marked and reachable) data at the
 beginning of cycle $n$
 
-$F_n$ is the amount of floating garbage (marked and unreachable) at
+$F_n$ : amount of floating garbage (marked and unreachable) at
 the beginning of cycle $n$
 
-$G_n$ is the amount of collectible garbage (unmarked and unreachable)
+$G_n$ : amount of collectible garbage (unmarked and unreachable)
 at the beginning of cycle $n$
 
-$S_n$ is the amount of data allocated during the Sweep phase of cycle
+$S_n$ : amount of data allocated during the Sweep phase of cycle
 $n$
 
-$I_n$ is the amount of data allocated during the Idle phase of cycle
+$I_n$ : amount of data allocated during the Idle phase of cycle
 $n$
 
-$M_n$ is the amount of data allocated during the Mark phase of cycle
+$M_n$ : amount of data allocated during the Mark phase of cycle
 $n$
 
-$s$ is the amount of sweeping work done per word allocated
+$s$ : amount of sweeping work done per word allocated
 
-$m$ is the amount of marking work done per word allocated
+$m$ : amount of marking work done per word allocated
 
 Note that $s$ and $m$ are exclusive: for each word allocated we do
 either $s$ words of sweeping or $m$ words of marking.
@@ -380,31 +380,33 @@ bigarrays (but also I/O buffers, etc.).
 We define a few more variables:
 
 \bigskip
-$L'_n$ is the amount of off-heap live data (linked from live
+$L'_n$ : amount of off-heap live data (linked from live
 heap blocks) at the beginning of cycle $n$
 
-$F'_n$ is the amount of off-heap floating garbage (linked from
+$F'_n$ : amount of off-heap floating garbage (linked from
 floating garbage heap blocks and not live) at the beginning of
 cycle $n$
 
-$G'_n$ is the amount of off-heap collectible garbage (linked only from
+$G'_n$ : amount of off-heap collectible garbage (linked only from
 collectible garbage heap blocks) at the beginning of cycle $n$
 
-$S'_n$ is the amount of off-heap data allocated during the Sweep phase
+$S'_n$ : amount of off-heap data allocated during the Sweep phase
 of cycle $n$
 
-$I'_n$ is the amount of off-heap data allocated during the Idle phase
+$I'_n$ : amount of off-heap data allocated during the Idle phase
 of cycle $n$
 
-$M'_n$ is the amount of off-heap data allocated during the Mark phase
+$M'_n$ : amount of off-heap data allocated during the Mark phase
 of cycle $n$
 
-We introduce two more control parameters for the GC:
+\bigskip
+\noindent We introduce two more control parameters for the GC:
 
-$s'$ is the is the amount of GC work done per off-heap word allocated
+\bigskip
+$s'$ : amount of GC work done per off-heap word allocated
 in the Sweep phase
 
-$m'$ is the is the amount of GC work done per off-heap word allocated
+$m'$ : amount of GC work done per off-heap word allocated
 in the Mark phase
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -704,34 +706,34 @@ use memory, and they do add workload to the GC.
 We add more notations:
 
 \bigskip
-$L''_n$ is the amount of live ephemerons at the beginning of cycle $n$.
+$L''_n$ : amount of live ephemerons at the beginning of cycle $n$.
 
-$F''_n$ is the amount of floating garbage ephemerons at the beginning
+$F''_n$ : amount of floating garbage ephemerons at the beginning
 of cycle $n$.
 
-$G''_n$ is the amount of collectible garbage ephemerons at the
+$G''_n$ : amount of collectible garbage ephemerons at the
 beginning of cycle $n$.
 
-$S''_n$ is the amount of ephemerons allocated during the Sweep phase
+$S''_n$ : amount of ephemerons allocated during the Sweep phase
 of cycle $n$.
 
-$I''_n$ is the amount of ephemerons allocated during the Idle phase
+$I''_n$ : amount of ephemerons allocated during the Idle phase
 of cycle $n$.
 
-$M''_n$ is the amount of ephemerons allocated during the Mark phase
+$M''_n$ : amount of ephemerons allocated during the Mark phase
 of cycle $n$.
 
-$W_n$, $W'_n$, $W''_n$ are the amounts of heap data, off-heap
+$W_n$, $W'_n$, $W''_n$ : amounts of heap data, off-heap
 data, ephemerons allocated during the Ephe\_sweep phase. (W stands for
 ``weak'')
 
-$s''$ is the amount of GC work done per word of ephemerons allocated
+$s''$ : amount of GC work done per word of ephemerons allocated
 during the Mark phase.
 
-$m''$ is the amount of GC work done per word of ephemerons allocated
+$m''$ : amount of GC work done per word of ephemerons allocated
 during the Mark phase.
 
-$w$, $w'$, $w''$ are the amounts of work done per word of
+$w$, $w'$, $w''$ : amounts of work done per word of
 heap data, off-heap data, ephemerons allocated during the Ephe\_sweep
 phase.
 

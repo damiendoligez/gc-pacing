@@ -9,3 +9,4 @@
 # Rocq stuff
 *.glob
 .nra.cache
+*.vo*
