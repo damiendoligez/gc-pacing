@@ -6,6 +6,9 @@
 \usepackage{bbding}
 \usepackage{hyperref}
 
+%% This document lives at https://github.com/damiendoligez/gc-pacing
+
+
 \begin{document}
 
 \title{GC control loop for OCaml 5\\
@@ -74,8 +77,8 @@ words (allocated or collected, live or dead, etc.) including the
 header words.
 
 Steady-state assumption (SSA): whenever $x$
-words are allocated by the mutator, $x$ (other) words are made
-unreachable. This is a simplifying assumption that lets us study the
+words are allocated by the mutator, $x$ (other) words are dropped (made
+unreachable). This is a simplifying assumption that lets us study the
 optimal solution to our problem: make the program use an amount of
 memory proportional to the size of the live data. We expect most
 programs to have at least some phases that violate this
@@ -107,7 +110,7 @@ $o$ : \verb'overhead' parameter of the runtime system, given by
 the user.
 
 $L_n$ : amount of live (marked and reachable) data at the
-beginning of cycle $n$
+beginning of cycle~$n$
 
 $F_n$ : amount of floating garbage (marked and unreachable) at
 the beginning of cycle $n$
@@ -202,14 +205,14 @@ and in fact the amount of live data is constant through the GC
 cycle. We will drop the subscript and call this amount $L$.
 
 Because the GC is a snapshot-at-beginning incremental GC, the floating
-garbage at the beginning of cycle $n+1$ is what was allocated between
+garbage at the beginning of cycle $n+1$ is what was dropped between
 the marking of roots and the end of cycle $n$:
 \begin{equation}\label{eqn-F}
   F_{n+1} = M_n
 \end{equation}
 
 The collectible garbage is composed of the floating garbage from the
-previous cycle, plus what became unreachable before the marking of
+previous cycle, plus what was dropped before the marking of
 roots:
 \begin{equation}\label{eqn-G}
   G_{n+1} = F_n + S_n + I_n
@@ -415,7 +418,7 @@ in the Mark phase
 We complete the SSA with a new assumption:
 
 Extended steady-state assumption (SSAx): Whenever $x'$ words are
-allocated off-heap, $x'$ (other) off-heap words become unreachable.
+allocated off-heap, $x'$ (other) off-heap words are dropped.
 
 We also introduce the Allocation Rate Assumption (ARA): that the ratio
 of off-heap to on-heap allocations is a constant $e'$. We get:
@@ -610,7 +613,8 @@ s = 1 + (2\sigma+1)/\beta
 This leaves us with
 \begin{align}
 s' & = (2\sigma+1)/\beta \\
-s' & = s - 1
+s' & = s - 1 \\
+m' & = s' / \sigma
 \end{align}
 
 
@@ -697,8 +701,8 @@ ephemerons to remove the garbage from the list and erase the weak
 pointers as needed.
 \end{itemize}
 
-Note that ephemerons are in a way dual to off-heap memory: they do not
-use memory, and they do add workload to the GC.
+Note that ephemerons are somewhat dual to off-heap memory: they do not
+use memory, but they do add to the GC workload.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Notations}
@@ -728,7 +732,7 @@ data, ephemerons allocated during the Ephe\_sweep phase. (W stands for
 ``weak'')
 
 $s''$ : amount of GC work done per word of ephemerons allocated
-during the Mark phase.
+during the Sweep phase.
 
 $m''$ : amount of GC work done per word of ephemerons allocated
 during the Mark phase.
@@ -783,7 +787,7 @@ G''_{n+1} = F''_n + S''_n + I''_n   \label{eqn-G''}
 
 Note that,
 at the beginning of Ephe\_mark, the ephemeron list contains not only
-all the marked ephemerons: live $L''$ and floating garbage of the next
+all the marked ephemerons $L''$ and floating garbage of the next
 cycle $F''_{n+1}$ but also all the garbage ephemerons of the next
 cycle $G''_{n+1}$ that will be removed from the list in this phase
 and reclaimed
@@ -791,7 +795,7 @@ during the Sweep phase of the next cycle. However, for the garbage
 ephemerons, the GC does no work beyond removing them from the list,
 unlike the other ones, for which it has to examine each field. Since
 adding the term $G''_{n+1}$ to \eqref{eqn-W''} makes the stability
-condition really hard
+condition harder
 to study, we will simplify things by not counting them as work, thus
 incurring another slight degradation of the real-time performance.
 
@@ -808,7 +812,7 @@ wW_n + w'W'_n + w''W''_n = L'' + F''_{n+1}  \label{eqn-wW''}
 \subsection{Overhead}
 
 The ephemerons cause more GC work, but they do not occupy any memory
-beyond what is already accounted for, so our definitions of overhead
+beyond what is already accounted for, so our definition of overhead
 does not need to be changed.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -865,7 +869,7 @@ We get:
 G_{n+1} = F + L/(s+s'e'+s''e'') + F/(s+s'e'+s''e'') + G_n/(s+s'e'+s''e'')
 \end{equation}
 
-This converges on a constant G iff $s+s'e'+s''e'' > 1$. We once again
+This converges to a constant G iff $s+s'e'+s''e'' > 1$. We once again
 assume $s > 1$, which ensures the condition is true for all values of
 $e'$ and $e''$. We also assume that $G_n$ has converged to its limit,
 which we again call $G$.
