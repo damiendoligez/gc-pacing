@@ -683,7 +683,7 @@ above equations, so at best we'll be able to bound $L$.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Ephemerons}
 
-To deal with ephemerons, the GC has to maintain a global list of all
+To deal with ephemerons, the GC maintains a global list of all
 ephemerons, and uses two more phases, inserted between
 the Mark phase and the end of the cycle:
 \begin{itemize}
@@ -882,6 +882,7 @@ We have the following:
 s/m &= \sigma  &  s'/m' &= \sigma \\
 I &= 0  &  I' &= 0  &  I'' &= 0  \\
  & & M' &= e'M  &  M'' &= e''M \\
+ & & W' &= e'W  &  W'' &= e''W \\
  & & S' &= e'S  &  S'' &= e''S \\
 F &= M + W  &  F' &= M' + W'  &  F'' &= M'' + W'' \\
 G &= F + S + I  &  G' &= F' + S' + I' \\
