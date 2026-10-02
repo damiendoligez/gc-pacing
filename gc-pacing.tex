@@ -786,13 +786,13 @@ G''_{n+1} = F''_n + S''_n + I''_n   \label{eqn-G''}
 \end{gather}
 
 Note that,
-at the beginning of Ephe\_mark, the ephemeron list contains not only
+at the beginning of Ephe\_sweep, the ephemeron list contains not only
 all the marked ephemerons $L''$ and floating garbage of the next
 cycle $F''_{n+1}$ but also all the garbage ephemerons of the next
 cycle $G''_{n+1}$ that will be removed from the list in this phase
 and reclaimed
-during the Sweep phase of the next cycle. However, for the garbage
-ephemerons, the GC does no work beyond removing them from the list,
+during the Sweep phase of the next cycle. However the GC does no work
+on garbage ephemerons beyond removing them from the list,
 unlike the other ones, for which it has to examine each field. Since
 adding the term $G''_{n+1}$ to \eqref{eqn-W''} makes the stability
 condition harder
@@ -802,9 +802,9 @@ incurring another slight degradation of the real-time performance.
 Equations
 \eqref{eqn-sS'} and \eqref{eqn-mM'} become invalid and are replaced with:
 \begin{gather}
-sS_n + s'S'_n + s''S''_n = L + F_n + G_n \label{eqn-sS''}  \\
-mM_n + m'M'_n + m''M''_n = L  \label{eqn-mM''} \\
-wW_n + w'W'_n + w''W''_n = L'' + F''_{n+1}  \label{eqn-wW''}
+sS_n + s'S'_n + s''S''_n = L_n + F_n + G_n \label{eqn-sS''}  \\
+mM_n + m'M'_n + m''M''_n = L_n  \label{eqn-mM''} \\
+wW_n + w'W'_n + w''W''_n = L''_n + F''_{n+1}  \label{eqn-wW''}
 \end{gather}
 
 
