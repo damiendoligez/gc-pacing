@@ -285,14 +285,14 @@ We have the following equations:
 
 \begin{gather*}
 Q = \beta      \\
-\sigma = s/m   \\
+s = \sigma m   \\
 I = 0          \\
-Q = O / L      \\
-O = F + G      \\
-G = F + S + I  \\
 F = M          \\
+G = F + S + I  \\
 sS = L + F + G \\
-mM = L
+mM = L         \\
+O = F + G      \\
+Q = O / L
 \end{gather*}
 
 These equations are mostly linear and we can eliminate all the
@@ -324,15 +324,16 @@ A = L + O
 
 We have the following equations:
 \begin{gather*}
-sigma = s/m \\
+Q = \beta      \\
+s = \sigma m   \\
 J = S + I      \\
-O = F + G      \\
-A = L + O      \\
+F = M          \\
+G = F + J      \\
 sS = L + F + G \\
-mM = L \\
-Q = O/L \\
-F = M \\
-G = F + J \\
+mM = L         \\
+O = F + G      \\
+Q = O/L        \\
+A = L + O
 \end{gather*}
 
 We get\footnote{Checked by Rocq, with the additional conditions
@@ -572,11 +573,12 @@ Our goal is now to keep $\dot{Q}$ close to $\beta$, so we replace
 
 We have the following equations:
 \begin{gather*}
- \sigma = s / m \\
- \sigma = s' / m'\\
+ \dot{Q} = \beta \\
+ s = \sigma m   \\
+ s' = \sigma m' \\
+ S' = e' S \\
  I = 0 \\
  I' = 0 \\
- S' = e' S \\
  M' = e' M \\
  F = M \\
  F' = M' \\
@@ -626,18 +628,18 @@ mode, and concentrate on the choice of $\dot{J}$.
 
 We have the following equations:
 \begin{gather*}
-\sigma = s / m \\
-\sigma = s' / m' \\
-G = F + S + I  \\
-G' = F' + S' + I'  \\
-F = M \\
-F' = M'  \\
+s = \sigma m \\
+s' = \sigma m' \\
 S' = e'S \\
+\dot{J} = S + S' + I + I'  \\
 I' = e'I \\
 M' = e'M \\
+F = M \\
+F' = M'  \\
+G = F + S + I  \\
+G' = F' + S' + I'  \\
 sS + s'S' = L + F + G \\
 mM + m'M' = L \\
-\dot{J} = S + S' + I + I'  \\
 O = F + G  \\
 O' = F' + G' \\
 \dot{O} = O + O'  \\
@@ -880,17 +882,18 @@ $\dot{O}$, $\dot{Q}$ are also constant.
 
 We have the following equations:
 \begin{align*}
-\sigma &= s/m  &  \sigma &= s'/m' \\
+s &= \sigma m  &  s' &= \sigma m' \\
  & & S' &= e'S  &  S'' &= e''S \\
 I &= 0  &  I' &= 0  &  I'' &= 0  \\
  & & M' &= e'M  &  M'' &= e''M \\
  & & W' &= e'W  &  W'' &= e''W \\
 F &= M + W  &  F' &= M' + W'  &  F'' &= M'' + W'' \\
 G &= F + S + I  &  G' &= F' + S' + I' \\
-O &= F + G  &  O' &= F' + G' & \dot{O} &= O + O' \\
-\dot{Q} &= \dot{O}/L  & sS + s'S' + s''S'' &= L + F + G \\
+             &         & sS + s'S' + s''S'' &= L + F + G \\
              &         &  mM + m'M' + m''M'' &= L \\
-             &         &  wW + w'W' + w''W'' &= L'' + M''
+             &         &  wW + w'W' + w''W'' &= L'' + M'' \\
+O &= F + G  &  O' &= F' + G' & \dot{O} &= O + O' \\
+\dot{Q} &= \dot{O}/L
 \end{align*}
 
 Let us define the following intermediate variables to make the
@@ -1083,21 +1086,20 @@ are also constant.
 
 We have the following equations:
 \begin{align*}
-\sigma &= s/m  &  \sigma &= s'/m'  &  \sigma &= s''/m'' \\
-w &= 2s/\gamma  &  w' &= 2s'/\gamma  &  w'' &= 2s''/\gamma \\
-J &= S + I & J' &= S'+I' & \dot{J} &= J + J' \\
- & & S' &= e'S  &  S'' &= e''S \\
- & & I' &= e'I \\
- & & M' &= e'M  &  M'' &= e''M \\
- & & W' &= e'W  &  W'' &= e''W \\
-F &= M + W  &  F' &= M' + W'  &  F'' &= M'' + W'' \\
-G &= F + S + I  &  G' &= F' + S' + I' \\
-O &= F + G  &  O' &= F' + G' & \dot{O} &= O + O' \\
-             &         & sS + s'S' + s''S'' &= L + F + G \\
-             &         &  mM + m'M' + m''M'' &= L \\
-             &         &  wW + w'W' + w''W'' &= L'' + M'' \\
- s &= 1 + (2\sigma +1)/\beta  &  s' &= (2\sigma+1)/\beta  &  s'' &=
- \sigma+1 \\
+      s &= \sigma m          &      s' &= \sigma m'   &  s'' &= \sigma m'' \\
+      w &= 2s/\gamma         &      w' &= 2s'/\gamma  &  w'' &= 2s''/\gamma \\
+        &                    &      S' &= e'S         &  S'' &= e''S \\
+\dot{J} &= S + S' + I + I'   &      I' &= e'I \\
+        &                    &      M' &= e'M         &  M'' &= e''M \\
+        &                    &      W' &= e'W         &  W'' &= e''W \\
+      F &= M + W             &      F' &= M' + W'     &  F'' &= M'' + W'' \\
+      G &= F + S + I         &      G' &= F' + S' + I' \\
+      O &= F + G             &      O' &= F' + G'     &  \dot{O} &= O + O' \\
+        &     &     sS + s'S' + s''S'' &= L + F + G \\
+        &     &     mM + m'M' + m''M'' &= L \\
+        &     &     wW + w'W' + w''W'' &= L'' + M'' \\
+      s &= 1 + (2\sigma +1)/\beta  &  s' &= (2\sigma+1)/\beta
+                                                      &  s'' &= \sigma+1 \\
  \gamma &= (\sigma + 1)\beta''/\beta \\
 \end{align*}
 
