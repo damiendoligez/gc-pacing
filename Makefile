@@ -1,6 +1,9 @@
 TEXOPTIONS = -file-line-error -halt-on-error
 
-default: gc-pacing.pdf
+default: gc-pacing.pdf equations.vo
+
+clean:
+	rm -f *.glob *.vo* *.aux *.log *.out gc-pacing.pdf
 
 gc-pacing.pdf: gc-pacing.tex
 	pdflatex ${TEXOPTIONS} gc-pacing.tex <&-

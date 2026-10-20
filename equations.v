@@ -146,7 +146,7 @@ rewrite H9.
 field_simplify. auto.
 Qed.
 
-Theorem custom_small_1 :
+Theorem custom_small :
   forall (s m s' m' sigma e' I I' M M' S S' F F' G G' L Jd O O' Od beta : R),
     s = m * sigma ->
     s' = m' * sigma ->
@@ -245,7 +245,7 @@ Theorem ephe_normal :
   forall (s s' s'' m m' m'' w w' w''
           I I' I'' M M' M'' S S' S'' W W' W''
           F F' F'' G G' O O' Od Qd L L''
-          sdd mdd wdd sb wb sigma gamma e' e'' : R),
+          sdd mdd wdd sb sigma gamma e' e'' : R),
   s = sigma * m ->
   s' = sigma * m' ->
   I = 0 ->
@@ -268,14 +268,13 @@ Theorem ephe_normal :
   Qd = Od / L ->
   s * S + s' * S' + s'' * S'' = L + F + G ->
   m * M + m' * M' + m'' * M'' = L ->
-  w * W + w' * W' + w'' * W'' = L'' + F'' ->
+  w * W + w' * W' + w'' * W'' = L'' + M'' ->
   sdd = s + e' * s' + e'' * s'' ->
   mdd = m + e' * m' + e'' * m'' ->
   wdd = w + e' * w' + e'' * w'' ->
   sb = sdd - 1 ->
-  wb = wdd - e'' ->
   mdd = sdd / sigma ->
-  wb = 2 * sdd / gamma ->
+  wdd = 2 * sdd / gamma ->
   gamma <> 0 ->
   sigma <> 0 ->
   e' >= 0 ->
@@ -293,7 +292,7 @@ replace (m * M + m' * M' + m'' * M'') with (mdd * M) in H20 by nra.
 replace (w * W + w' * W' + w'' * W'') with (wdd * W) in H21 by nra.
 field_simplify in H19.
 assert (sb * S = L + 2*M + 2*W) by nra. clear H19.
-assert (wb * W = L'' + e'' * M) by nra. clear H21.
+assert (wdd * W = L'' + e'' * M) by nra. clear H21.
 field_simplify in H15.
 field_simplify in H16.
 subst Qd Od O O' M' W' S'.
@@ -306,18 +305,18 @@ rewrite H1.
 replace (2 * sb * M + 2 * sb * W + (L + 2 * M + 2 * W))
   with (2 * (sb+1) * M + 2 * (sb+1) * W + L) by nra.
 replace (sb+1) with sdd by nra.
-assert (sdd = mdd*sigma) by (rewrite H27; field_simplify; auto).
+assert (sdd = mdd*sigma) by (rewrite H26; field_simplify; auto).
 replace (2*sdd*M) with (2*sigma*(mdd*M)) by nra.
-assert (2*sdd = wb*gamma) by (rewrite H28; field_simplify; auto).
-replace (2*sdd*W) with (gamma*(wb*W)) by nra.
+assert (2*sdd = wdd*gamma) by (rewrite H27; field_simplify; auto).
+replace (2*sdd*W) with (gamma*(wdd*W)) by nra.
 
-replace ((2 * M + 2 * W + S) / L * sb * (wb*mdd))
-  with ((2*(mdd*M)*wb + 2*(wb*W)*mdd + S*wb*mdd)/L*sb) by nra.
+replace ((2 * M + 2 * W + S) / L * sb * (wdd*mdd))
+  with ((2*(mdd*M)*wdd + 2*(wdd*W)*mdd + S*wdd*mdd)/L*sb) by nra.
 rewrite H2.
 replace (2 * (L'' + e'' * M) * mdd) with (2 * (L''*mdd + e'' * (mdd*M))) by nra.
 assert (mdd <> 0).
 {
-  rewrite H27.
+  rewrite H26.
   assert (/sigma <> 0) by now apply Rinv_neq_0_compat.
   assert (sdd <> 0) by nra.
   nra.
@@ -348,7 +347,7 @@ Theorem ephe_small :
   s'' = sigma * m'' ->
   w = 2*s/gamma ->
   w' = 2*s'/gamma ->
-  w'' = 2*s''/gamma + 1 ->
+  w'' = 2*s''/gamma ->
   F = M + W  ->
   F' = M' + W' ->
   F'' = M'' + W'' ->
@@ -360,7 +359,7 @@ Theorem ephe_small :
   Jd = S + S' + I + I' ->
   s*S + s'*S' + s''*S'' = L + F + G ->
   m*M + m'*M' + m''*M'' = L ->
-  w*W + w'*W' + w''*W'' = L'' + F'' ->
+  w*W + w'*W' + w''*W'' = L'' + M'' ->
   s = 1 + (2*sigma +1)/beta ->
   s' = (2*sigma+1)/beta ->
   s'' = sigma+1 ->
@@ -415,8 +414,8 @@ assert (Od * sdd = Jd * sdd + (e' + 1) * 2 * sigma * L + (e' + 1) * gamma * L'' 
   replace (M + W + (M + W + J) + (e' * M + e' * W + (e' * M + e' * W + J')))
     with ((e' + 1) * (2*M + 2*W + J)) by nra.
   subst F''.
-  assert ((wdd - e'')*W = L'' + e''*M) by nra.
-  replace (wdd - e'') with (2*sdd/gamma) in H1 by nra.
+  assert (wdd*W = L'' + e''*M) by nra.
+  replace wdd with (2*sdd/gamma) in H1 by nra.
   replace (2 * sdd / gamma * W) with (2*sdd*W/gamma) in H1 by nra.
   assert (2 * sdd * W /gamma * gamma = (L'' + e'' * M) * gamma) by nra.
   field_simplify in H2. 2: { nra. }

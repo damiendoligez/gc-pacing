@@ -258,8 +258,8 @@ allocate J words before we start marking:
 \subsection[Solving for s and m]{Solving for $s$ and $m$}
 
 We can use the SSA to simplify notations: Assuming $o$ (and $\beta$),
-$s$, $m$ are constant, we also have $L_n$, $M_n$, $F_n$ constant. We
-write them as $L$, $M$, $F$ without subscript.
+$s$, $m$ are constant, we also have $M_n$, $F_n$ constant. We
+write them as $M$, $F$ without subscript.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsubsection{Normal mode}
@@ -281,7 +281,7 @@ limit, which we call $G$.
 $S_n$, $O_n$, $A_n$, $Q_n$ are now constants too, we'll write $S$,
 $O$, $A$, $Q$.
 
-We get the following equations:
+We have the following equations:
 
 \begin{gather*}
 Q = \beta      \\
@@ -322,9 +322,9 @@ We define the active heap size $A$ to be live data plus overhead:
 A = L + O
 \end{gather*}
 
- We get the
-following equations:
+We have the following equations:
 \begin{gather*}
+sigma = s/m \\
 J = S + I      \\
 O = F + G      \\
 A = L + O      \\
@@ -332,7 +332,7 @@ sS = L + F + G \\
 mM = L \\
 Q = O/L \\
 F = M \\
-G = M + J \\
+G = F + J \\
 \end{gather*}
 
 We get\footnote{Checked by Rocq, with the additional conditions
@@ -449,8 +449,8 @@ The GC never touches or even looks at off-heap data, so the amount of
 work to do isn't affected by off-heap data. Equations \eqref{eqn-sS} and
 \eqref{eqn-mM} become invalid and are replaced with:
 \begin{gather}
- sS_n + s'S'_n = L_n + F_n + G_n   \label{eqn-sS'} \\
- mM_n + m'M'_n = L_n   \label{eqn-mM'}
+ sS_n + s'S'_n = L + F_n + G_n   \label{eqn-sS'} \\
+ mM_n + m'M'_n = L   \label{eqn-mM'}
 \end{gather}
 
 
@@ -508,7 +508,7 @@ response to off-heap allocation.
 $I_n$ and $I'_n$ are related by the ARA and \eqref{eqn-I'}, so there's
 only one
 thing to choose. The interesting value is the total active size
-$A + A'$ of the program rather than the way it is distributed between
+$L + L' + O + O'$ of the program rather than the way it is distributed between
 on-heap and off-heap data. As before, we'll distinguish two modes:
 \begin{itemize}
 \item Normal mode: when $L+L'$ is reasonably large, we want to use
@@ -520,8 +520,8 @@ called $\dot{J}$ and let:
 \begin{equation}\label{eqn-Jbar}
 \dot{J} = S_n + S'_n + I_n + I'_n
 \end{equation}
-In other words, we switch from Idle to Mark phase when
-$\dot{J}$ words have been allocated (on- and off-heap) since the
+In other words, we switch from Idle to Mark phase as soon as
+(at least) $\dot{J}$ words have been allocated (on- and off-heap) since the
 beginning of the cycle.
 \end{itemize}
 
@@ -536,7 +536,7 @@ $M'$ and $F'$ are also constant.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsubsection{Normal mode}
 
-We have the following equations:
+We have:
 \begin{gather*}
 S'_n = e'S_n \\
 sS_n + s'S'_n = L + F + G_n \\
@@ -572,12 +572,12 @@ Our goal is now to keep $\dot{Q}$ close to $\beta$, so we replace
 
 We have the following equations:
 \begin{gather*}
- s = \sigma m \\
- s' = \sigma m'\\
+ \sigma = s / m \\
+ \sigma = s' / m'\\
  I = 0 \\
  I' = 0 \\
- M' = e' M \\
  S' = e' S \\
+ M' = e' M \\
  F = M \\
  F' = M' \\
  G = F + S + I \\
@@ -626,17 +626,17 @@ mode, and concentrate on the choice of $\dot{J}$.
 
 We have the following equations:
 \begin{gather*}
-s = m \sigma \\
-s' = m' \sigma \\
+\sigma = s / m \\
+\sigma = s' / m' \\
 G = F + S + I  \\
 G' = F' + S' + I'  \\
-F' = M'  \\
 F = M \\
+F' = M'  \\
 S' = e'S \\
 I' = e'I \\
 M' = e'M \\
-mM + m'M' = L \\
 sS + s'S' = L + F + G \\
+mM + m'M' = L \\
 \dot{J} = S + S' + I + I'  \\
 O = F + G  \\
 O' = F' + G' \\
@@ -698,7 +698,8 @@ for programs that make significant use of ephemerons with complex data
 structures (plain weak arrays are not affected).
 \item Ephe\_sweep, where the GC goes once through the list of
 ephemerons to remove the garbage from the list and erase the weak
-pointers as needed.
+pointers as needed. Ephemerons allocated during this phase are not
+swept by this phase.
 \end{itemize}
 
 Note that ephemerons are somewhat dual to off-heap memory: they do not
@@ -791,7 +792,7 @@ all the marked ephemerons $L''$ and floating garbage of the next
 cycle $F''_{n+1}$ but also all the garbage ephemerons of the next
 cycle $G''_{n+1}$ that will be removed from the list in this phase
 and reclaimed
-during the Sweep phase of the next cycle. However the GC does no work
+during the Sweep phase of the next cycle. However this phase does no work
 on garbage ephemerons beyond removing them from the list,
 unlike the other ones, for which it has to examine each field. Since
 adding the term $G''_{n+1}$ to \eqref{eqn-W''} makes the stability
@@ -802,9 +803,9 @@ incurring another slight degradation of the real-time performance.
 Equations
 \eqref{eqn-sS'} and \eqref{eqn-mM'} become invalid and are replaced with:
 \begin{gather}
-sS_n + s'S'_n + s''S''_n = L_n + F_n + G_n \label{eqn-sS''}  \\
-mM_n + m'M'_n + m''M''_n = L_n  \label{eqn-mM''} \\
-wW_n + w'W'_n + w''W''_n = L''_n + F''_{n+1}  \label{eqn-wW''}
+sS_n + s'S'_n + s''S''_n = L + F_n + G_n \label{eqn-sS''}  \\
+mM_n + m'M'_n + m''M''_n = L  \label{eqn-mM''} \\
+wW_n + w'W'_n + w''W''_n = L''_n + M''_n  \label{eqn-wW''}
 \end{gather}
 
 
@@ -877,19 +878,19 @@ which we again call $G$.
 Then $S$, $S'$, $S''$, $G'$, $G''$, $O$, $O'$,
 $\dot{O}$, $\dot{Q}$ are also constant.
 
-We have the following:
+We have the following equations:
 \begin{align*}
-s/m &= \sigma  &  s'/m' &= \sigma \\
+\sigma &= s/m  &  \sigma &= s'/m' \\
+ & & S' &= e'S  &  S'' &= e''S \\
 I &= 0  &  I' &= 0  &  I'' &= 0  \\
  & & M' &= e'M  &  M'' &= e''M \\
  & & W' &= e'W  &  W'' &= e''W \\
- & & S' &= e'S  &  S'' &= e''S \\
 F &= M + W  &  F' &= M' + W'  &  F'' &= M'' + W'' \\
 G &= F + S + I  &  G' &= F' + S' + I' \\
 O &= F + G  &  O' &= F' + G' & \dot{O} &= O + O' \\
 \dot{Q} &= \dot{O}/L  & sS + s'S' + s''S'' &= L + F + G \\
              &         &  mM + m'M' + m''M'' &= L \\
-             &         &  wW + w'W' + w''W'' &= L'' + F''
+             &         &  wW + w'W' + w''W'' &= L'' + M''
 \end{align*}
 
 Let us define the following intermediate variables to make the
@@ -898,19 +899,18 @@ formulas easier to handle:
 \ddot{s} = s + e's' + e''s'' \\
 \ddot{m} = m + e'm' + e''m'' \\
 \ddot{w} = w + e'w' + e''w'' \\
-\overline{s} = \ddot{s} - 1 \\
-\overline{w} = \ddot{w} - e''
+\overline{s} = \ddot{s} - 1
 \end{gather}
 
 We get:
 \begin{gather}
 \overline{s} S = L + 2(M + W) \\
 \ddot{m}M = L \\
-\overline{w}W = L'' + e'' M
+\ddot{w}W = L'' + e'' M
 \end{gather}
 
 Then we can compute $\dot{O}$ as a function of $L$, $L''$, $e'$,
-$e''$, M, $\overline{s}$, $\ddot{m}$, $\overline{w}$:
+$e''$, M, $\overline{s}$, $\ddot{m}$, $\ddot{w}$:
 
 \begin{gather}
 \dot{O} = (e'+1)(S + 2(M+W)) \\
@@ -920,10 +920,10 @@ $e''$, M, $\overline{s}$, $\ddot{m}$, $\overline{w}$:
  = \frac{L}{\overline{s}} + 2(M+W)\frac{\ddot{s}}{\overline{s}} \\
 \frac{\dot{O}}{e'+1}
  = \frac{L}{\overline{s}} + \frac{2L\ddot{s}}{\ddot{m}\overline{s}}
-     + \frac{2(L''+e''M)\ddot{s}}{\overline{w}\overline{s}} \\
+     + \frac{2(L''+e''M)\ddot{s}}{\ddot{w}\overline{s}} \\
 \frac{\dot{O}}{e'+1}
  = \frac{L}{\overline{s}} + \frac{2L\ddot{s}}{\ddot{m}\overline{s}}
-     + \frac{2(L''+\frac{e''L}{\ddot{m}})\ddot{s}}{\overline{w}\overline{s}}
+     + \frac{2(L''+\frac{e''L}{\ddot{m}})\ddot{s}}{\ddot{w}\overline{s}}
 \end{gather}
 
 \bigskip
@@ -931,11 +931,11 @@ $e''$, M, $\overline{s}$, $\ddot{m}$, $\overline{w}$:
 \bigskip
 
 We make some simplifying decisions in order to cut down the number of
-variables: we make $\ddot{m}$ and $\overline{w}$ both proportional to
+variables: we make $\ddot{m}$ and $\ddot{w}$ both proportional to
 $\ddot{s}$ and introduce a new intermediate variable $\gamma$:
 \begin{gather}
 \ddot{m} = \ddot{s} / \sigma \label{eqn-ms} \\
-\overline{w} = 2\ddot{s} / \gamma \label{eqn-ws}
+\ddot{w} = 2\ddot{s} / \gamma \label{eqn-ws}
 \end{gather}
 
 Then we get:
@@ -1019,7 +1019,7 @@ m = s/\sigma \\
 m' = s'/\sigma \\
 w = 2s/\gamma \\
 w' = 2s'/\gamma \\
-w'' = 2s''/\gamma + 1
+w'' = 2s''/\gamma
 \end{gather}
 
 Now we have to choose $s''$. If we set it close to 0, then $\gamma$
@@ -1058,7 +1058,7 @@ m' = 2.33 \\
 m'' = 1.33 \\
 w = 20 \\
 w' = 17.5 \\
-w'' = 11
+w'' = 10
 \end{gather}
 There is some imbalance between the phases, but there is not much to
 gain by increasing $s''$, so the user may have to change $\beta''$ and
@@ -1081,21 +1081,21 @@ are also constant.
 
 \bigskip
 
-We have the following:
+We have the following equations:
 \begin{align*}
-S+I &= J & S'+I' &= J' & \dot{J} &= J + J' \\
- & & M' &= e'M  &  M'' &= e''M \\
- & & I' &= e'I \\
- & & W' &= e'W  &  W'' &= e''W \\
+\sigma &= s/m  &  \sigma &= s'/m'  &  \sigma &= s''/m'' \\
+w &= 2s/\gamma  &  w' &= 2s'/\gamma  &  w'' &= 2s''/\gamma \\
+J &= S + I & J' &= S'+I' & \dot{J} &= J + J' \\
  & & S' &= e'S  &  S'' &= e''S \\
- s &= \sigma m  &  s' &= \sigma m'  &  s'' &= \sigma m'' \\
- w &= 2s/\gamma  &  w' &= 2s'/\gamma  &  w'' &= 2s''/\gamma + 1 \\
+ & & I' &= e'I \\
+ & & M' &= e'M  &  M'' &= e''M \\
+ & & W' &= e'W  &  W'' &= e''W \\
 F &= M + W  &  F' &= M' + W'  &  F'' &= M'' + W'' \\
 G &= F + S + I  &  G' &= F' + S' + I' \\
 O &= F + G  &  O' &= F' + G' & \dot{O} &= O + O' \\
              &         & sS + s'S' + s''S'' &= L + F + G \\
              &         &  mM + m'M' + m''M'' &= L \\
-             &         &  wW + w'W' + w''W'' &= L'' + F'' \\
+             &         &  wW + w'W' + w''W'' &= L'' + M'' \\
  s &= 1 + (2\sigma +1)/\beta  &  s' &= (2\sigma+1)/\beta  &  s'' &=
  \sigma+1 \\
  \gamma &= (\sigma + 1)\beta''/\beta \\
