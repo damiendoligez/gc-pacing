@@ -574,3 +574,110 @@ apply (Rmult_le_reg_r s''). nra.
 apply (Rmult_le_reg_r (2*sigma+1)). nra.
 auto.
 Qed.
+
+
+(* --------------------------------------------------------------------- *)
+(* Lower-bound ("floor") theorem for normal mode with ephemerons.
+
+   The design goal (equation (50) of the design document) is
+       beta <= Qd <= beta + beta''.
+   The theorems above establish an equality (ephe_normal) and an upper
+   bound (ephe_small), but nothing checks the floor [beta <= Qd].  This
+   theorem does, under the corrected parameter choice [s'' = 0]
+   (ephemeron allocations pace the Sweep and Mark phases only through
+   their on-heap accounting).  With the former choice [s'' = sigma + 1]
+   this statement is false whenever [e'' > 0]: the uncompensated term
+   [e'' * s''] inflates [sb] (constraint (74) of the design document
+   fails) and the steady-state overhead lands below beta, increasingly
+   so for larger beta. *)
+
+Theorem ephe_normal_floor :
+  forall (s s' s'' m m' m'' w w' w''
+          I I' I'' M M' M'' S S' S'' W W' W''
+          F F' F'' G G' O O' Od Qd L L''
+          sdd mdd wdd sb sigma gamma beta e' e'' : R),
+  s = sigma * m ->
+  s' = sigma * m' ->
+  I = 0 ->
+  I' = 0 ->
+  I'' = 0 ->
+  M' = e' * M ->
+  M'' = e'' * M ->
+  S' = e' * S ->
+  S'' = e'' * S ->
+  W' = e' * W ->
+  W'' = e'' * W ->
+  F = M + W ->
+  F' = M' + W' ->
+  F'' = M'' + W'' ->
+  G = F + S + I ->
+  G' = F' + S' + I' ->
+  O = F + G ->
+  O' = F' + G' ->
+  Od = O + O' ->
+  Qd = Od / L ->
+  s * S + s' * S' + s'' * S'' = L + F + G ->
+  m * M + m' * M' + m'' * M'' = L ->
+  w * W + w' * W' + w'' * W'' = L'' + M'' ->
+  sdd = s + e' * s' + e'' * s'' ->
+  mdd = m + e' * m' + e'' * m'' ->
+  wdd = w + e' * w' + e'' * w'' ->
+  sb = sdd - 1 ->
+  mdd = sdd / sigma ->
+  wdd = 2 * sdd / gamma ->
+  s = 1 + (2 * sigma + 1) / beta ->
+  s' = (2 * sigma + 1) / beta ->
+  s'' = 0 ->
+  beta > 0 ->
+  sigma > 0 ->
+  gamma > 0 ->
+  e' >= 0 ->
+  e'' >= 0 ->
+  L > 0 ->
+  L'' >= 0 ->
+  beta <= Qd.
+Proof.
+intros s s' s'' m m' m'' w w' w''
+       I I' I'' M M' M'' S S' S'' W W' W''
+       F F' F'' G G' O O' Od Qd L L''
+       sdd mdd wdd sb sigma gamma beta e' e''
+       Hsm Hs'm HI HI' HI'' HM' HM'' HS' HS'' HW' HW''
+       HF HF' HF'' HG HG' HO HO' HOd HQd
+       Hsweep Hmark Hephe Hsdd Hmdd Hwdd Hsb Hmds Hwdg
+       Hs Hs' Hs'' Hbeta Hsigma Hgamma He' He'' HL HL''.
+assert (Hfrac : (2 * sigma + 1) / beta > 0).
+{ apply Rdiv_lt_0_compat; lra. }
+assert (Hspos : s > 0) by lra.
+assert (Hs'pos : s' >= 0) by lra.
+assert (Hs''pos : s'' >= 0) by lra.
+assert (Hgne : gamma <> 0) by (apply Rgt_not_eq; lra).
+assert (Hsne : sigma <> 0) by (apply Rgt_not_eq; lra).
+assert (HLne : L <> 0) by (apply Rgt_not_eq; lra).
+(* The steady-state equality, from ephe_normal. *)
+assert (HQeq : Qd * sb
+               = (e' + 1) * (1 + 2*sigma + gamma*(L''/L + e'' / mdd))).
+{ apply (ephe_normal s s' s'' m m' m'' w w' w''
+                     I I' I'' M M' M'' S S' S'' W W' W''
+                     F F' F'' G G' O O' Od Qd L L''
+                     sdd mdd wdd sb sigma gamma e' e''); assumption. }
+(* With s'' = 0, constraint (74) holds: sb * beta = (e'+1)(2 sigma + 1).
+   (With s'' = sigma + 1 this step fails: sb * beta picks up an extra
+   e'' * s'' * beta.) *)
+assert (Hsbb : sb * beta = (e' + 1) * (2 * sigma + 1)).
+{ rewrite Hsb, Hsdd, Hs, Hs', Hs''. field. apply Rgt_not_eq; lra. }
+assert (Hrhs : (e' + 1) * (2 * sigma + 1) > 0) by nra.
+assert (Hsbpos : sb > 0) by nra.
+assert (Hsddpos : sdd > 0). { rewrite Hsdd, Hs''. nra. }
+assert (Hmddpos : mdd > 0).
+{ rewrite Hmds. apply Rdiv_lt_0_compat; lra. }
+assert (HinvL : / L > 0) by (apply Rinv_0_lt_compat; lra).
+assert (Hinvm : / mdd > 0) by (apply Rinv_0_lt_compat; lra).
+unfold Rdiv in HQeq.
+(* The gamma term (Ephe_sweep-phase overhead) is nonnegative, so the
+   equality gives the floor. *)
+assert (Ht1 : L'' * / L >= 0) by nra.
+assert (Ht2 : e'' * / mdd >= 0) by nra.
+assert (Hterm : gamma * (L'' * / L + e'' * / mdd) >= 0) by nra.
+assert (Hge : Qd * sb >= (e' + 1) * (1 + 2 * sigma)) by nra.
+nra.
+Qed.
