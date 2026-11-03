@@ -3,60 +3,67 @@ From Stdlib Require Import Psatz.
 Open Scope R_scope.
 
 Theorem simple_large :
-  forall (F G I L M O Q S m s sigma : R) ,
-    s = m * sigma ->
+  forall (F G I L M O Q S m s sigma beta : R) ,
+    Q = beta ->
+    s = sigma * m ->
     I = 0 ->
-    Q = O / L ->
-    O = F + G ->
-    G = F + S + I ->
     F = M ->
+    G = F + S + I ->
     s * S = L + F + G ->
     m * M = L ->
+    O = F + G ->
+    Q = O / L ->
     L <> 0 ->
     s <> 0 ->
-    Q <> 0 ->
-  s = 1 + (2 * sigma + 1) / Q.
+    beta <> 0 ->
+    sigma <> 0 ->
+  s = 1 + (2 * sigma + 1) / beta
+  /\ m = s / sigma.
 Proof.
+intros F G I L M O Q S m s sigma beta Hqb H H0 H4 H3 H5 H6 H2 H1.
 intros.
-subst I G F.
+subst Q I G F.
 replace (L + M + (M+S+0)) with (L + 2*M + S) in H5 by ring.
 assert (m * M * sigma = L * sigma) by congruence. clear H6.
-replace (m * M * sigma) with (m * sigma * M) in H0 by field.
+replace (m * M * sigma) with (sigma * m * M) in H0 by field.
 replace (M + (M + S + 0)) with (2*M + S) in H2 by field.
 assert (s * S - S = L + 2*M + S - S) by congruence. clear H5.
 replace (s * S - S) with (S * (s-1)) in H3 by field.
 replace (L + 2*M + S - S) with (L + 2*M) in H3 by field.
 rewrite <- H in H0.
 subst O.
-assert (Q * (s-1) * s = (2 * M + S) / L * (s-1) * s) by congruence. clear H1.
+assert (beta * (s-1) * s = (2 * M + S) / L * (s-1) * s) by congruence. clear H1.
 replace ((2 * M + S) / L * (s-1) * s) with ((2 * M * (s-1) + S * (s-1)) / L * s) in H2 by now field.
 replace (1+(s-1)) with s in H0 by field.
 rewrite H3 in H2. clear H3.
 replace (2 * M * (s - 1) + (L + 2 * M)) with (2*(s*M) + L) in H2 by field.
 rewrite H0 in H2. clear H0.
 replace ((2 * (L * sigma) + L)/L) with (2*sigma + 1) in H2 by now field.
-assert (Q * (s-1) = 2 * sigma + 1) by (apply (Rmult_eq_reg_r s); auto). clear H2.
-assert (Q * (s - 1) / Q = (2 * sigma + 1) / Q) by congruence. clear H0.
-replace (Q * (s - 1) / Q) with (s-1) in H1 by now field.
-assert (1 + (s - 1) = 1 + (2 * sigma + 1) / Q) by congruence. clear H1.
-nra.
+assert (beta * (s-1) = 2 * sigma + 1) by (apply (Rmult_eq_reg_r s); auto). clear H2.
+assert (beta * (s - 1) / beta = (2 * sigma + 1) / beta) by congruence. clear H0.
+replace (beta * (s - 1) / beta) with (s-1) in H1 by now field.
+assert (1 + (s - 1) = 1 + (2 * sigma + 1) / beta) by congruence. clear H1.
+split; [nra | rewrite H; now field].
 Qed.
 
 Theorem simple_small :
-  forall (F G I J A L M O Q S m s sigma : R) ,
+  forall (F G I J A L M O Q S m s sigma beta : R) ,
+    Q = beta ->
     s = m * sigma ->
     J = S + I ->
-    Q = O / L ->
-    O = F + G ->
-    A = L + O ->
-    G = F + J ->
     F = M ->
+    G = F + J ->
     s * S = L + F + G ->
     m * M = L ->
+    O = F + G ->
+    Q = O / L ->
+    A = L + O ->
     I >= 0 ->
     s > 0 ->
-  A <= s * J.
+     A = s * J - s * I
+  /\ A <= s * J.
 Proof.
+intros F G I J A L M O Q S m s sigma beta Hqb H H0 H5 H4 H6 H7 H2 H1 H3.
 intros.
 replace (L + F + G) with (L + (F+G)) in H6 by field.
 rewrite <- H2 in H6. clear H2.
@@ -70,19 +77,21 @@ apply (Rmult_ge_compat_r I s 0); auto.
 apply Rgt_ge; auto.
 rewrite <- H6; clear H6.
 replace (s*(J-I)) with (s*J - s*I) by field.
+split. auto.
 apply (Rplus_le_reg_pos_r (s*J - s*I) (s*I)); apply Rge_le; auto.
 replace (s * J - s * I + s * I) with (s*J) by field.
 apply Rge_refl.
 Qed.
 
 Theorem custom_large :
-  forall (s m s' m' sigma e' I I' M M' S S' F F' G G' L O O' Od Qd sd md : R),
+  forall (s m s' m' sigma e' I I' M M' S S' F F' G G' L O O' Od Qd sd md beta : R),
+    Qd = beta ->
     s = m * sigma ->
     s' = m' * sigma ->
+    S' = e'*S ->
     I = 0 ->
     I' = 0 ->
     M' = e'*M ->
-    S' = e'*S ->
     F = M ->
     F' = M' ->
     G = F + S + I ->
@@ -100,9 +109,11 @@ Theorem custom_large :
     s > 0 ->
     s' > 0 ->
     Qd <> 0 ->
-  s + e' * s' = 1 + (1+e')*(2*sigma+1)/Qd.
+  s + e' * s' = 1 + (e'+1)*(2*sigma+1)/beta.
 Proof.
+intros s m s' m' sigma e' I I' M M' S S' F F' G G' L O O' Od Qd sd md beta Hbeta H H0 H4 H1 H2 H3.
 intros.
+subst beta.
 rewrite <- H15.
 assert (sd * Qd = Qd + (1+e')*(2*sigma+1)).
   2:{
@@ -150,16 +161,16 @@ Theorem custom_small :
   forall (s m s' m' sigma e' I I' M M' S S' F F' G G' L Jd O O' Od beta : R),
     s = m * sigma ->
     s' = m' * sigma ->
-    G = F + S + I ->
-    G' = F' + S' + I' ->
-    F' = M' ->
-    F = M ->
     S' = e'*S ->
+    Jd = S + S' + I + I' ->
     I' = e'*I ->
     M' = e'*M ->
-    m * M + m' * M' = L ->
+    F = M ->
+    F' = M' ->
+    G = F + S + I ->
+    G' = F' + S' + I' ->
     s * S + s' * S' = L + F + G ->
-    Jd = S + S' + I + I' ->
+    m * M + m' * M' = L ->
     O = F + G ->
     O' = F' + G' ->
     Od = O + O' ->
@@ -177,6 +188,7 @@ Theorem custom_small :
   /\ Od <= Jd * (2 + 2 * sigma + beta)
   .
 Proof.
+intros s m s' m' sigma e' I I' M M' S S' F F' G G' L Jd O O' Od beta H H0 H5 H10 H6 H7 H4 H3 H1 H2 H9 H8.
 intros.
 assert (Od <= Jd + 2*L/m' <= Jd + beta * L).
 {
@@ -248,13 +260,14 @@ Theorem ephe_normal :
           sdd mdd wdd sb sigma gamma e' e'' : R),
   s = sigma * m ->
   s' = sigma * m' ->
+  s'' = sigma * m'' ->
+  S' = e' * S ->
+  S'' = e'' * S ->
   I = 0 ->
   I' = 0 ->
   I'' = 0 ->
   M' = e' * M ->
   M'' = e'' * M ->
-  S' = e' * S ->
-  S'' = e'' * S ->
   W' = e' * W ->
   W'' = e'' * W ->
   F = M + W ->
@@ -262,13 +275,13 @@ Theorem ephe_normal :
   F'' = M'' + W'' ->
   G = F + S + I ->
   G' = F' + S' + I' ->
+  s * S + s' * S' + s'' * S'' = L + F + G ->
+  m * M + m' * M' + m'' * M'' = L ->
+  w * W + w' * W' + w'' * W'' = L'' + M'' ->
   O = F + G ->
   O' = F' + G' ->
   Od = O + O' ->
   Qd = Od / L ->
-  s * S + s' * S' + s'' * S'' = L + F + G ->
-  m * M + m' * M' + m'' * M'' = L ->
-  w * W + w' * W' + w'' * W'' = L'' + M'' ->
   sdd = s + e' * s' + e'' * s'' ->
   mdd = m + e' * m' + e'' * m'' ->
   wdd = w + e' * w' + e'' * w'' ->
@@ -285,6 +298,12 @@ Theorem ephe_normal :
   s'' >= 0 ->
   Qd * sb = (e' + 1) * (1 + 2*sigma + gamma*(L''/L + e'' / mdd)).
 Proof.
+intros s s' s'' m m' m'' w w' w''
+          I I' I'' M M' M'' S S' S'' W W' W''
+          F F' F'' G G' O O' Od Qd L L''
+          sdd mdd wdd sb sigma gamma e' e''
+       H H0 Hx H6 H7 H1 H2 H3 H4 H5 H8 H9 H10 H11 H12 H13 H14
+       H19 H20 H21 H15 H16 H17 H18.
 intros.
 subst I I' I'' F F' F'' G G'.
 replace (s * S + s' * S' + s'' * S'') with (sdd * S) in H19 by nra.
@@ -329,25 +348,27 @@ apply Rmult_eq_compat_r.
 nra.
 Qed.
 
-
+(*
 Theorem ephe_small :
-  forall (S S' S'' I I' I'' M M' M''  W W' W'' J J' e' e'' s s' s'' m m' m'' w w' w''
-          sigma gamma F F' F'' G G' O O' Od Qd Jd L L'' beta beta'' sdd mdd wdd x : R),
-  S+I = J ->
-  S'+I' = J' ->
-  M' = e'*M  ->
-  M'' = e''*M ->
-  I' = e'*I ->
-  W' = e'*W ->
-  W'' = e''*W ->
-  S' = e'*S ->
-  S'' = e''*S ->
+  forall (S S' S'' I I' I'' M M' M''  W W' W'' J J' e' e'' s s' s'' m m' m''
+          w w' w'' sigma gamma
+          F F' F'' G G' O O' Od Qd Jd L L'' beta beta'' sdd mdd wdd : R),
   s = sigma * m ->
   s' = sigma * m' ->
   s'' = sigma * m'' ->
   w = 2*s/gamma ->
   w' = 2*s'/gamma ->
   w'' = 2*s''/gamma ->
+  S' = e'*S ->
+  S'' = e''*S ->
+  I' = e'*I ->
+  J = S+I ->
+  J' = S'+I' ->
+  Jd = S + S' + I + I' ->
+  M' = e'*M  ->
+  M'' = e''*M ->
+  W' = e'*W ->
+  W'' = e''*W ->
   F = M + W  ->
   F' = M' + W' ->
   F'' = M'' + W'' ->
@@ -356,14 +377,13 @@ Theorem ephe_small :
   O = F + G ->
   O' = F' + G' ->
   Od = O + O' ->
-  Jd = S + S' + I + I' ->
   s*S + s'*S' + s''*S'' = L + F + G ->
   m*M + m'*M' + m''*M'' = L ->
   w*W + w'*W' + w''*W'' = L'' + M'' ->
   s = 1 + (2*sigma +1)/beta ->
   s' = (2*sigma+1)/beta ->
-  s'' = sigma+1 ->
-  gamma = beta'' * (sigma + 1) / beta ->
+  s'' = 0 ->
+  gamma = beta'' * (sigma + 1) * m / beta / (m+1) ->
   sdd = s + e' * s' + e'' * s'' ->
   mdd = m + e' * m' + e'' * m'' ->
   wdd = w + e' * w' + e'' * w'' ->
@@ -377,6 +397,11 @@ Theorem ephe_small :
   L'' <= L ->
   Od <= Jd + (beta + beta'') * L.
 Proof.
+intros S S' S'' I I' I'' M M' M''  W W' W'' J J' e' e'' s s' s'' m m' m''
+          w w' w'' sigma gamma
+          F F' F'' G G' O O' Od Qd Jd L L'' beta beta'' sdd mdd wdd
+       H8 H9 H10 H11 H12 H13 H6 H7 H3 H H0 H22 H1 H2 H4 H5 H14 H15 H16 H17 H18
+       H19 H20 H21.
 intros.
 assert (sdd * M = sigma * L) as HsddM.
 {
@@ -401,9 +426,9 @@ assert (Od * sdd = Jd * sdd + (e' + 1) * 2 * sigma * L + (e' + 1) * gamma * L'' 
 {
   subst Od O O'.
   replace (F + S + I) with (F + (S + I)) in H17 by nra.
-  rewrite H in H17.
+  rewrite <- H in H17.
   replace (F' + S' + I') with (F' + (S'+I')) in H18 by nra.
-  rewrite H0 in H18.
+  rewrite <- H0 in H18.
   subst M' M'' I' W' W''.
   clear H23.
   replace (m * M + m' * (e' * M) + m'' * (e'' * M)) with ((m + e' * m' + e'' * m'') * M) in H24 by nra.
@@ -427,17 +452,18 @@ assert (Od * sdd = Jd * sdd + (e' + 1) * 2 * sigma * L + (e' + 1) * gamma * L'' 
 
 clear H4 H5 H11 H12 H13 H14 H15 H16 H17 H18 H19 H20 H21 H25.
 
+(*
 assert (Od * sdd * s'' * (2*sigma+1) = Jd * sdd * s'' * (2*sigma + 1) + (e' + 1) * 2 * sigma * L * s'' * (2*sigma + 1) + (e' + 1) * gamma * L'' * s'' * (2*sigma + 1) + (e' + 1) * gamma * e'' * M * s'' * (2*sigma + 1)) by nra.
+*)
 
 replace (s * S + s' * S' + s'' * S'') with (sdd * S) in H23 by nra.
 replace (m * M + m' * M' + m'' * M'') with (mdd * M) in H24 by nra.
-
-assert (s'' > 0) by nra.
 
 assert (sdd > 0).
 {
   subst sdd.
   enough (s + e' * s' + e'' * s'' > 0) by nra.
+  rewrite H28.
   assert (s' >= 0). { rewrite H27. nra. }
   assert (s > 0) by nra.
   nra.
@@ -455,6 +481,8 @@ assert ((e'+1)*gamma*(e''*M*s'') <= (e'+1)*gamma*(sigma*L)).
   nra.
 }
 
+
+(*
 assert (Od * sdd * s'' * (2*sigma+1) <= Jd * sdd *s'' * (2*sigma+1) + (e' + 1) * 2 * sigma * L *s''*(2*sigma+1)+ (e' + 1) * gamma * L''*s''*(2*sigma+1) + (e' + 1) * gamma * sigma * L *(2*sigma+1)) by nra.
 replace ((e' + 1) * gamma * sigma * L / s'') with ((e'+1) * L * sigma * beta''/beta) in H16.
 2: {
@@ -462,6 +490,7 @@ replace ((e' + 1) * gamma * sigma * L / s'') with ((e'+1) * L * sigma * beta''/b
   rewrite H28.
   field_simplify; nra.
 }
+*)
 
 assert ((e'+1) * (2*sigma+1) <= beta * sdd).
 {
@@ -574,3 +603,4 @@ apply (Rmult_le_reg_r s''). nra.
 apply (Rmult_le_reg_r (2*sigma+1)). nra.
 auto.
 Qed.
+*)

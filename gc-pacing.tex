@@ -29,7 +29,7 @@ Barnes, \href{https://github.com/ocaml/ocaml/pull/13580}{\#13580}),
 which delays the marking of roots until sweeping is mostly done. We'll
 make the simplifying assumption that sweeping is completed before the
 roots are marked.
-\item Stephen Dolan's accounting patch,
+\item[\Checkmark] Stephen Dolan's accounting patch,
 \href{https://github.com/oxcaml/oxcaml/pull/3618}{oxcaml\#3618}, which
 ensures that the work done to mark the roots and the marking work done by the
 write barrier are counted as normal marking work.
@@ -40,7 +40,9 @@ list (formally, it is bounded by a linear function of
 live$+$garbage). Note that this may also be covered by
 \href{https://github.com/oxcaml/oxcaml/pull/3618}{oxcaml\#3618}. To
 be checked in \verb'shared_heap.c/pool_sweep'.
-\item Another patch to change the ephemeron GC work accounting. The
+\item[\Checkmark] Another patch,
+\href{https://github.com/ocaml/ocaml/pull/14366}{\#14366},
+to change the ephemeron GC work accounting. The
 marking of ephemerons should be counted as normal marking (each block
 counting for its size when it gets marked). This is to get rid of
 arbitrary (up to quadratic) amounts of work when the structure of
@@ -50,7 +52,9 @@ pauses will have less-predictable length, hurting the worst-case
 latency of pauses. In practice this should not be a problem because
 the users of ephemerons (therorem-provers) are not dependent on
 real-time behaviour.
-\item Yet another patch to insert an Idle phase between Sweep and
+\item[\Checkmark] Yet another patch,
+\href{https://github.com/ocaml/ocaml/pull/14366}{\#14366},
+to insert an Idle phase between Sweep and
 Mark. In this phase, the GC does not do any work while the mutator is
 allocating as usual.
 \end{itemize}
@@ -300,7 +304,8 @@ uppercase variables to get\footnote{
 Checked by Rocq, with the additional conditions
 $L \neq 0$,
 $s \neq 0$,
-$Q \neq 0$
+$\beta \neq 0$,
+$\sigma \neq 0$
 }
 \begin{gather*}
 s = 1 + (2\sigma + 1)/\beta \\
@@ -325,7 +330,7 @@ A = L + O
 We have the following equations:
 \begin{gather*}
 Q = \beta      \\
-s = \sigma m   \\
+s = m \sigma   \\
 J = S + I      \\
 F = M          \\
 G = F + J      \\
@@ -473,7 +478,7 @@ O'_n = F'_n + G'_n
 
 We want to manage the on-heap and off-heap overhead as a whole, so we
 define the total space overhead to be the sum of the two:
-\begin{equation}\label{def-Obar}
+\begin{equation}\label{def-Odot}
  \dot{O}_n = O_n + O'_n
 \end{equation}
 
@@ -486,7 +491,7 @@ For programs with a large $L'/L$ factor, this might be a problem because
 the GC will aim for a very small overhead relative to the total live
 size $L+L'$. Our best solution for the moment is to count on the user
 to compensate by increasing the $o$ parameter.
-\begin{equation}\label{def-Qbar}
+\begin{equation}\label{def-Qdot}
 \dot{Q}_n = \dot{O}_n / L_n
 \end{equation}
 
@@ -518,7 +523,7 @@ $I_n = I'_n = 0$
 the GC by extending the Idle phase, and let the relative overhead get
 larger than the user setting. As before, we choose one constant, now
 called $\dot{J}$ and let:
-\begin{equation}\label{eqn-Jbar}
+\begin{equation}\label{eqn-Jdot}
 \dot{J} = S_n + S'_n + I_n + I'_n
 \end{equation}
 In other words, we switch from Idle to Mark phase as soon as
@@ -568,31 +573,28 @@ $\dot{Q}$.
 Our goal is now to keep $\dot{Q}$ close to $\beta$, so we replace
 \eqref{beta-Q} with:
 \begin{gather}
-\dot{Q} = \beta \label{beta-Qbar}
+\dot{Q} = \beta \label{beta-Qdot}
 \end{gather}
 
 We have the following equations:
-\begin{gather*}
- \dot{Q} = \beta \\
- s = \sigma m   \\
- s' = \sigma m' \\
- S' = e' S \\
- I = 0 \\
- I' = 0 \\
- M' = e' M \\
- F = M \\
- F' = M' \\
- G = F + S + I \\
- G' = F' + S' + I' \\
- sS + s'S' = L + F + G \\
- mM + m'M' = L \\
- O = F + G \\
- O' = F' + G' \\
- \dot{O} = O + O' \\
- \dot{Q} = \dot{O} / L \\
-\end{gather*}
+\begin{align*}
+ \dot{Q} &= \beta \\
+ s &= m \sigma  &   s' &= m' \sigma \\
+   &            &   S' &= e' S \\
+ I &= 0         &   I' &= 0 \\
+   &            &   M' &= e' M \\
+ F &= M         &   F' &= M' \\
+ G &= F + S + I &   G' &= F' + S' + I' \\
+ sS + s'S' &= L + F + G \\
+ mM + m'M' &= L \\
+ O &= F + G     &   O' &= F' + G' \\
+ \dot{O} &= O + O' \\
+ \dot{Q} &= \dot{O} / L \\
+\dot{s} &= s + e' s' \\
+\dot{m} &= m + e' m'
+\end{align*}
 
-Solving for $s$ and $s'$ as a function of $\dot{Q}$, we get\footnote{
+Solving for $s$ and $s'$ as functions of $\beta$, we get\footnote{
 Checked by Rocq, with the additional conditions
 $L \neq 0$,
 $e' \ge 0$,
@@ -601,7 +603,7 @@ $s' > 0$,
 $\dot{Q} \neq 0$
 }
 \begin{equation} \label{eqn-s'}
-s + e' s' = 1 + (1+e') (2\sigma+1)/\dot{Q}
+s + e' s' = 1 + (e'+1) (2\sigma+1)/\beta
 \end{equation}
 
 If $e' = 0$ we get the same equation as in the simple heap. If $e' >
@@ -628,8 +630,8 @@ mode, and concentrate on the choice of $\dot{J}$.
 
 We have the following equations:
 \begin{gather*}
-s = \sigma m \\
-s' = \sigma m' \\
+s = m \sigma \\
+s' = m' \sigma \\
 S' = e'S \\
 \dot{J} = S + S' + I + I'  \\
 I' = e'I \\
@@ -828,9 +830,9 @@ is still to keep $\dot{Q}_n$ close to $\beta$.
 As we will see, there is additional overhead associated to the amount
 of live ephemerons present in the heap. To deal with this, we
 introduce a new parameter $\beta''$ and change our goal from
-\eqref{beta-Qbar} to:
+\eqref{beta-Qdot} to:
 \begin{gather}
-\beta \leq \dot{Q} \leq \beta + \beta'' \label{beta''-Qbar}
+\beta \leq \dot{Q} \leq \beta + \beta'' \label{beta''-Qdot}
 \end{gather}
 
 
@@ -933,22 +935,41 @@ $e''$, M, $\overline{s}$, $\ddot{m}$, $\ddot{w}$:
 \bigskip
 \bigskip
 
-We make some simplifying decisions in order to cut down the number of
-variables: we make $\ddot{m}$ and $\ddot{w}$ both proportional to
-$\ddot{s}$ and introduce a new intermediate variable $\gamma$:
+We can simplify further, based on the following decisions:
+\begin{itemize}
+\item We choose $m''$ such that $s'' = \sigma * m''$ for the same
+reason that we chose $s' = \sigma * m'$.
+\item We introduce a new parameter $\gamma$ and make $(w, w', w'')$
+       proportional to $(s, s', s'')$ by a factor of $2/\gamma$.
+\end{itemize}
+
+We then have:
 \begin{gather}
 \ddot{m} = \ddot{s} / \sigma \label{eqn-ms} \\
 \ddot{w} = 2\ddot{s} / \gamma \label{eqn-ws}
 \end{gather}
 
-Then we get:
-\begin{gather}
-\frac{\dot{O}}{e'+1}
- = \frac{L}{\overline{s}} + 2\sigma\frac{L}{\overline{s}}
-     + \gamma\frac{L'' + \frac{e''M}{\ddot{m}}}{\overline{s}}
-\end{gather}
+Now have the following equations:
+\begin{align*}
+s &= \sigma m  &  s' &= \sigma m'  &  s'' &= \sigma m'' \\
+ & & S' &= e'S  &  S'' &= e''S \\
+I &= 0  &  I' &= 0  &  I'' &= 0  \\
+ & & M' &= e'M  &  M'' &= e''M \\
+ & & W' &= e'W  &  W'' &= e''W \\
+F &= M + W  &  F' &= M' + W'  &  F'' &= M'' + W'' \\
+G &= F + S + I  &  G' &= F' + S' + I' \\
+             &         & sS + s'S' + s''S'' &= L + F + G \\
+             &         &  mM + m'M' + m''M'' &= L \\
+             &         &  wW + w'W' + w''W'' &= L'' + M'' \\
+O &= F + G  &  O' &= F' + G' & \dot{O} &= O + O' \\
+\dot{Q} &= \dot{O}/L \\
+\ddot{s} &= s + e's' + e''s'' & \ddot{m} &= m + e'm' + e''m'' &
+   \ddot{w} &= w + e'w' + e''w'' \\
+\overline{s} &= \ddot{s} - 1  &  \ddot{m} &= \ddot{s} / \sigma &
+   \ddot{w} &= 2\ddot{s} / \gamma
+\end{align*}
 
-And finally\footnote{
+From which we get\footnote{
 Checked by Rocq, with the additional conditions
 $\gamma \neq 0$,
 $\sigma \neq 0$,
@@ -976,30 +997,32 @@ We can take $L''$ and $e''$ out of the picture by loosening the upper
 bound:
 \begin{gather}
 \frac{1}{\overline{s}}(e'+1)(1 + 2\sigma) \leq \dot{Q} \leq
-\frac{1}{\overline{s}}(e'+1)(1 + 2\sigma + \gamma(1 + \frac{1}{m''}))
+\frac{1}{\overline{s}}(e'+1)(1 + 2\sigma + \gamma(1 + \frac{1}{m}))
 \end{gather}
 
 
-By matching this against \eqref{beta''-Qbar}, we get:
+By matching this against \eqref{beta''-Qdot}, we get:
 
 \begin{gather}
-\beta = \frac{1}{\overline{s}}(e'+1)(2\sigma+1) \\
-\beta'' = \frac{1}{\overline{s}}(e'+1)\gamma(1+\frac{1}{m''})
+\beta = \frac{1}{\overline{s}}(e'+1)(2\sigma+1)    \label{beta}\\
+\beta'' = \frac{1}{\overline{s}}(e'+1)\gamma(1+\frac{1}{m})   \label{beta''}
 \end{gather}
 
 This gives :
 \begin{gather}
-\gamma = \frac{\beta''}{\beta}(2\sigma+1)\frac{m''}{m''+1} \label{eqn-gamma}
+\gamma = \frac{\beta''}{\beta}(2\sigma+1)\frac{m}{m+1} \label{eqn-gamma}
 \end{gather}
 
-Now we have:
+From \eqref{beta} we get:
 \begin{gather}
 \overline{s} = \frac{e'+1}{\beta}(2\sigma+1) \\
 s - 1 + e's' + e''s'' = (e'+1)(2\sigma+1)/\beta
 \end{gather}
 
-This bound is attained in the absence of ephemerons (i.e. when
-$L'' = e'' = 0$) and we then get:
+Since this must be true for all values of $e''$, we get $s'' = 0$ (and
+consequently $m'' = 0$ and $w'' = 0$).
+
+So we have:
 \begin{gather}
 s - 1 + e's' = (e'+1)(2\sigma+1)/\beta
 \end{gather}
@@ -1014,32 +1037,16 @@ s = 1 + (2\sigma + 1)/\beta \\
 s' = (2\sigma + 1)/\beta
 \end{gather}
 
-Note that the above does not constrain the value of $m''$ (or $s''$).
 We use \eqref{eqn-ms} and \eqref{eqn-ws} to derive the remaining
 coefficients:
 \begin{gather}
+s'' = 0 \\
 m = s/\sigma \\
 m' = s'/\sigma \\
+m'' = 0 \\
 w = 2s/\gamma \\
 w' = 2s'/\gamma \\
-w'' = 2s''/\gamma
-\end{gather}
-
-Now we have to choose $s''$. If we set it close to 0, then $\gamma$
-also goes to 0 and $w$, $w'$ get arbitrarily large. If we set
-$s''$ to be very large, $m''$ will also be large. In the first
-case, we get large latencies in the Ephe\_sweep phase, while in the
-second case we get large latencies when allocating ephemerons in the
-other phases.
-
-In order to strike a balance between the two extremes (and to get
-simpler formulas) we will choose $s'' = \sigma + 1$.
-
-We then have:
-\begin{gather}
-\gamma = \frac{\beta''}{\beta}(\sigma + 1) \\
-s'' = \sigma + 1 \\
-m'' = s''/\sigma \\
+w'' = 0
 \end{gather}
 
 We can do a smoke check with some reasonable values for the
@@ -1052,26 +1059,20 @@ parameters:
 
 We get:
 \begin{gather}
-\gamma = 0.8 \\
 s = 8 \\
 s' = 7 \\
-s'' = 4 \\
 m = 2.67 \\
 m' = 2.33 \\
-m'' = 1.33 \\
-w = 20 \\
-w' = 17.5 \\
-w'' = 10
+\gamma = 1.02 \\
+w = 15.71 \\
+w' = 13.75 \\
 \end{gather}
-There is some imbalance between the phases, but there is not much to
-gain by increasing $s''$, so the user may have to change $\beta''$ and
-strike a balance between space overhead and latency. Note that
-$\beta''$ is a really loose bound on the space overhead incurred by
-ephemerons, since it is only approached (not even reached) when all
-the heap data and allocations are made up of ephemerons.
 
-The right user setting might be $\beta''/\beta$ rather than $\beta''$
-itself, since the formulas only depend on the ratio.
+The work coefficients for the Ephe\_sweep phase are almost twice the
+coefficients of the Sweep phase, which means the GC pauses might be
+longer (we need to measure this). They can be reduced by increasing
+$\beta''$, but again we don't expect users of ephemerons to care much
+about GC latency.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1086,22 +1087,30 @@ are also constant.
 
 We have the following equations:
 \begin{align*}
-      s &= \sigma m          &      s' &= \sigma m'   &  s'' &= \sigma m'' \\
-      w &= 2s/\gamma         &      w' &= 2s'/\gamma  &  w'' &= 2s''/\gamma \\
-        &                    &      S' &= e'S         &  S'' &= e''S \\
-\dot{J} &= S + S' + I + I'   &      I' &= e'I \\
-        &                    &      M' &= e'M         &  M'' &= e''M \\
-        &                    &      W' &= e'W         &  W'' &= e''W \\
-      F &= M + W             &      F' &= M' + W'     &  F'' &= M'' + W'' \\
-      G &= F + S + I         &      G' &= F' + S' + I' \\
-      O &= F + G             &      O' &= F' + G'     &  \dot{O} &= O + O' \\
-        &     &     sS + s'S' + s''S'' &= L + F + G \\
-        &     &     mM + m'M' + m''M'' &= L \\
-        &     &     wW + w'W' + w''W'' &= L'' + M'' \\
-      s &= 1 + (2\sigma +1)/\beta  &  s' &= (2\sigma+1)/\beta
-                                                      &  s'' &= \sigma+1 \\
- \gamma &= (\sigma + 1)\beta''/\beta \\
+ s &= \sigma m          &      s' &= \sigma m'   &  s'' &= \sigma m'' \\
+ w &= 2s/\gamma         &      w' &= 2s'/\gamma  &  w'' &= 2s''/\gamma \\
+   &                    &      S' &= e'S         &  S'' &= e''S \\
+   &                    &      I' &= e'I \\
+ J &= S + I             &      J' &= S' + I'  &  \dot{J} &= S + S' + I + I' \\
+   &                    &      M' &= e'M         &  M'' &= e''M \\
+   &                    &      W' &= e'W         &  W'' &= e''W \\
+ F &= M + W             &      F' &= M' + W'     &  F'' &= M'' + W'' \\
+ G &= F + S + I         &      G' &= F' + S' + I' \\
+ O &= F + G             &      O' &= F' + G'     &  \dot{O} &= O + O' \\
+   &     &     sS + s'S' + s''S'' &= L + F + G \\
+   &     &     mM + m'M' + m''M'' &= L \\
+   &     &     wW + w'W' + w''W'' &= L'' + M'' \\
+ s &= 1 + (2\sigma +1)/\beta  &  s' &= (2\sigma+1)/\beta  &  s'' &= 0 \\
+ \gamma &= (\sigma + 1)\beta'' m / \beta / (m+1)\\
+ \ddot{s} &= s + e's' + e''s''  &  \ddot{m} &= m + e'm' + e''m'' &
+    \ddot{w} &= w + e'w' + e''w'' \\
 \end{align*}
+
+TODO: prove some bound (probably $(\beta + \beta')L + \dot{J}(2 +
+2\sigma + \beta)$).
+
+\end{document}
+
 
 We can prove\footnote{
 Checked by Rocq, with the additional conditions
