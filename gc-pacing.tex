@@ -657,10 +657,12 @@ $\sigma > 0$,
 $\beta > 0$,
 $e' >= 0$,
 $M >= 0$,
-$L >= 0$
+$L >= 0$,
+$S >= 0$,
+$I >= 0$
 }
 \begin{gather*}
-\dot{O} \leq \dot{J} + \frac{2L}{m'} \leq \beta L + \dot{J} \\
+\dot{O} \leq \dot{J} + \frac{2L}{m'} \leq \dot{J} + \beta L \\
 \dot{O} \leq \dot{J} (2 + 2\sigma + \beta)
 \end{gather*}
 
@@ -1106,24 +1108,18 @@ We have the following equations:
     \ddot{w} &= w + e'w' + e''w'' \\
 \end{align*}
 
-TODO: prove some bound (probably $(\beta + \beta')L + \dot{J}(2 +
-2\sigma + \beta)$).
-
-\end{document}
-
-
 We can prove\footnote{
 Checked by Rocq, with the additional conditions
 $\sigma > 0$,
 $\beta > 0$,
 $\beta'' > 0$,
+$ 0 \le e'' \le 1$,
 $e' \ge 0$,
-$e'' \ge 0$,
 $M \ge 0$,
-$0 \le L'' \le L$.
+$0 \le L'' \le L$
 }
 \begin{gather}
-\dot{O} \leq (\beta + \beta'')L + \dot{J}
+\dot{O} \leq \dot{J} + (\beta + \beta'')L
 \end{gather}
 
 Once again, small-memory mode cannot add more than a
