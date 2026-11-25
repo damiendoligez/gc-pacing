@@ -2,7 +2,7 @@ From Stdlib Require Import Reals.
 From Stdlib Require Import Psatz.
 Open Scope R_scope.
 
-Theorem simple_large_solution :
+Theorem custom_large_solution :
   forall (sigma beta : R),
     sigma <> 0 ->
     beta <> 0 ->
