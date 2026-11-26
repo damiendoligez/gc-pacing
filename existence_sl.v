@@ -92,3 +92,27 @@ Proof.
       subst I.
       now field.
 Qed.
+
+Theorem simple_large_solution_2 :
+  forall (sigma beta : R),
+    sigma <> 0 ->
+    beta <> 0 ->
+    forall (s m : R),
+      (   s = 1 + 2 * (sigma + 1) / beta
+       /\ m = s / sigma )
+      <->
+      forall (L : R),
+        L <> 0 ->
+        (exists (F G M O Q S I : R),
+             Q = beta
+          /\ I = 0
+          /\ F = M
+          /\ G = F + S + I
+          /\ s * S = L + F + G
+          /\ m * M = L
+          /\ O = F + G
+          /\ Q = O / L
+        )
+.
+Proof.
+Qed.
